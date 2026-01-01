@@ -1448,6 +1448,7 @@ class OptionDetails
   std::size_t m_hash{};
 };
 
+// Q - What s and l actually store?
 struct HelpOptionDetails
 {
   std::string s;
@@ -2152,6 +2153,8 @@ format_option
 
   if (!l.empty())
   {
+    // Ques - Not doing toLocalString on " --" is good?
+    // 
     result += " --" + toLocalString(l);
   }
 
@@ -2783,6 +2786,8 @@ Options::help_one_group(const std::string& g) const
 
   std::size_t longest = 0;
 
+  // Question - can g be empty in a valid cases?
+  // Maybe when users add options with empty parameters
   if (!g.empty())
   {
     result += toLocalString(" " + g + " options:\n");
