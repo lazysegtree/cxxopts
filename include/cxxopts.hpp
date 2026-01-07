@@ -2226,7 +2226,7 @@ format_description
     desc = desc2;
   }
 
-  desc += " ";
+  //desc += " ";
 
   auto current = std::begin(desc);
   auto previous = current;
@@ -2245,6 +2245,7 @@ format_description
     {
       lastSpace = current;
     }
+    // This doesn't deals with unicode whitespaces
     if (*current != ' ' && *current != '\t')
     {
       onlyWhiteSpace = false;
@@ -2808,6 +2809,9 @@ Options::help_one_group(const std::string& g) const
   }
   longest = (std::min)(longest, OPTION_LONGEST);
 
+  std::cout << "[DEBUG] help_one_group, longest=" << longest << std::endl; 
+
+
   //widest allowed description -- min 10 chars for helptext/line
   std::size_t allowed = 10;
   if (m_width > allowed + longest + OPTION_DESC_GAP)
@@ -2826,7 +2830,8 @@ Options::help_one_group(const std::string& g) const
     }
 
     auto d = format_description(o, longest + OPTION_DESC_GAP, allowed, m_tab_expansion);
-
+    
+    std::cout << "[DEBUG] help_one_group, ff=" << fiter->first << ", d=" << d << std::endl; 
     result += fiter->first;
     if (stringLength(fiter->first) > longest)
     {
@@ -2863,6 +2868,7 @@ Options::generate_group_help
     {
       continue;
     }
+    std::cout << "[DEBUG] group_help_text'" << group_help_text << "'" << std::endl; 
     result += group_help_text;
     if (i < print_groups.size() - 1)
     {
