@@ -1,3 +1,5 @@
 - What does `&&` means?
 - std::unique_ptr ? std::shared_ptr?
 - What syntax is this `std::size_t{ 0 }` ? Isn't size_t just llu?
+- What is string view?
+- What is non-owning reference?

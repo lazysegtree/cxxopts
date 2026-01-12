@@ -2133,6 +2133,10 @@ format_option
   const HelpOptionDetails& o
 )
 {
+  // TODO: figure out why 
+  // ("a,alpha,beta,gamma,delta", "Integer param with many names", cxxopts::value<int>())
+  // results in the o.l being 
+  // {delta, alpha, beta, gamma}
   const auto& s = o.s;
   const auto& l = first_or_empty(o.l);
 
@@ -2279,11 +2283,15 @@ format_description(const HelpOptionDetails& o,
     // end up deferencing *current which is
     // std::end(desc) ?
     // TODO: Check if desc starting with \n work
+    
     while (*current == '\n')
     {
       previous = current;
       ++current;
       appendNewLine = true;
+      if (current == std::end(desc)) {
+        std::cout<<"[DEBUG] About to dereference when current == std::end(desc)"<<std::endl;
+      }
     }
 
     // TODO: Verify size is incremented after checking, so when size == allowed,
@@ -2382,7 +2390,7 @@ OptionAdder::operator()
     // (length-1) and longer names
   std::string short_name {""};
   auto first_short_name_iter =
-    std::partition(option_names.begin(), option_names.end(),
+    std::stable_partition(option_names.begin(), option_names.end(),
       [&](const std::string& name) { return name.length() > 1; }
     );
   auto num_length_1_names = (option_names.end() - first_short_name_iter);
