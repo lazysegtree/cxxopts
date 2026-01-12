@@ -2176,19 +2176,18 @@ format_option
 }
 
 String
-format_description
-(
-  const HelpOptionDetails& o,
-  std::size_t start,
-  std::size_t allowed,
-  bool tab_expansion
+format_description(const HelpOptionDetails& o,
+                   std::size_t start,   // spacing that is done before
+                   std::size_t allowed, // max char count in a line
+                   bool tab_expansion   // QUES: What is this?
 )
 {
   auto desc = o.desc;
 
+  // If boolean is false by default, no need to print that
   if (o.has_default && (!o.is_boolean || o.default_value != "false"))
   {
-    if(!o.default_value.empty())
+    if (!o.default_value.empty())
     {
       desc += toLocalString(" (default: " + o.default_value + ")");
     }
@@ -2203,7 +2202,8 @@ format_description
   if (tab_expansion)
   {
     String desc2;
-    auto size = std::size_t{ 0 };
+    // size of the last line of the desc2
+    auto size = std::size_t{0};
     for (auto c = std::begin(desc); c != std::end(desc); ++c)
     {
       if (*c == '\n')
@@ -2213,6 +2213,9 @@ format_description
       }
       else if (*c == '\t')
       {
+        // QUES: Is this tabsize being hardcoded to 8?
+        // TODO: Should be fixed. Not everyone wants 8.
+        // Or at least should be a MACRO for clarity
         auto skip = 8 - size % 8;
         stringAppend(desc2, skip, ' ');
         size += skip;
@@ -2226,21 +2229,38 @@ format_description
     desc = desc2;
   }
 
-  //desc += " ";
+  // QUES: Why do this?
+  desc += " ";
 
-  auto current = std::begin(desc);
-  auto previous = current;
+  auto current   = std::begin(desc);
+  auto previous  = current;
   auto startLine = current;
+
+  // This also stays invalid a lot of time
+  // lastspace doesn't point to a character that is actually space
   auto lastSpace = current;
 
+  // TODO: A few lines above we use `size = std::size_t{ 0 }`
+  // here we don't . So much inconsistency. Fix it
   auto size = std::size_t{};
 
   bool appendNewLine;
+
+  // Whether the current line is only made of whitespaces
   bool onlyWhiteSpace = true;
 
+  // TODO: Use `(auto c = std::begin(desc); c != std::end(desc); ++c)` for loop
+  // Be consistent. Maybe this one is better that way as
+  // ++current happens at multiple places.
   while (current != std::end(desc))
   {
+    // QUES: For the first iteration, previous isn't exactly previous
+    // ... ? ... Will that cause issues?
+    // What if desc starts with ' '
     appendNewLine = false;
+    // In case desc is icu::UnicodeString, will this be okay?
+    // This doesn't deals with unicode whitespaces
+    // QUES: should we use isspace?
     if (*previous == ' ' || *previous == '\t')
     {
       lastSpace = current;
@@ -2251,6 +2271,14 @@ format_description
       onlyWhiteSpace = false;
     }
 
+    // QUES: What if I have desc with multiple \n\n, that will just ignore them?
+    // Its bad i think, reduces the possibilities of custom text
+    // TODO: Raise an issue maybe?
+    // TODO: What if desc is made up of only newlines
+    // At the end of the loop, will we
+    // end up deferencing *current which is
+    // std::end(desc) ?
+    // TODO: Check if desc starting with \n work
     while (*current == '\n')
     {
       previous = current;
@@ -2258,11 +2286,17 @@ format_description
       appendNewLine = true;
     }
 
+    // TODO: Verify size is incremented after checking, so when size == allowed,
+    // we've already processed allowed + 1 characters before triggering the
+    // wrap. The first wrapped line is slightly longer than subsequent ones.
     if (!appendNewLine && size >= allowed)
     {
+      // QUES: wtf?
+      // This is kinda a check that lastSpace was never modified after last
+      // reset
       if (lastSpace != startLine)
       {
-        current = lastSpace;
+        current  = lastSpace;
         previous = current;
       }
       appendNewLine = true;
@@ -2281,21 +2315,26 @@ format_description
 
       stringAppend(result, start, ' ');
 
+      // QUES: Why twice?
+      // Dead code as lastSpace == current
+      // right now
+      // TODO: Remote it
       if (*previous != '\n')
       {
         stringAppend(result, lastSpace, current);
       }
 
       onlyWhiteSpace = true;
-      size = 0;
+      size           = 0;
     }
 
     previous = current;
     ++current;
+    //
     ++size;
   }
 
-  //append whatever is left but ignore whitespace
+  // append whatever is left but ignore whitespace
   if (!onlyWhiteSpace)
   {
     stringAppend(result, startLine, previous);

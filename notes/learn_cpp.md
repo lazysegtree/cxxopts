@@ -1,0 +1,3 @@
+- What does `&&` means?
+- std::unique_ptr ? std::shared_ptr?
+- What syntax is this `std::size_t{ 0 }` ? Isn't size_t just llu?

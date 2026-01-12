@@ -1,5 +1,6 @@
-#include "../include/cxxopts.hpp"
 #include <iostream>
+
+#include "../include/cxxopts.hpp"
 
 int
 main(int argc, const char* argv[])
