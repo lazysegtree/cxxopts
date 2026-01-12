@@ -24,6 +24,11 @@ main(int argc, const char* argv[])
     ("vs", "Vector of string", cxxopts::value<std::vector<std::string>>())
     ("v,verbose", "Verbose output",cxxopts::value<bool>()->default_value("false"))
     ("h,help", "Print usage");
+
+  auto grp = options.group_help("");
+  for (int i=0; i<grp.options.size(); i++){
+    DEBUG(i, grp.options[i].s, grp.options[i].l);
+  }
   
   
   auto result = options.parse(argc, argv);
