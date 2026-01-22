@@ -21,12 +21,15 @@ int main(int argc, const char* argv[])
     //{R"(.*<(.*)>(.*)</(.*)>.*)", "Be wary of <b>dark</b> side of <b>life</b>."},
     //{R"(<(.*)>(.*)</\1>)", "<b>dark</b> side of <b>life</b>"},
     {p, "-o=hi"},
+    {p, "-o="},
     {p, "--option=hi"},
+    {p, "--option="},
     {p, "--option"},
     {p, "-abo"},
     {p, "-abo=hi"},
   };
   
+  cxxopts::values::parser_tool::ParseArgument();
 
   for (auto p : vm) {
     std::regex pat(p.first);

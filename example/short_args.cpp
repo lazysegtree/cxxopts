@@ -12,7 +12,10 @@ int main(int argc, const char* argv[])
     ;
   
   //const char* argvb[] = {"./a.out", "-o=hi"};
-  
-  auto res = options.parse(argc, argv)["option"].as<std::string>();
+  options.allow_unrecognised_options();
+  auto result = options.parse(argc, argv);
+  auto res = result["option"].as<std::string>();
   std::cout << "option is '" << res << "'\n";
+  DEBUG(result.arguments_string());
+  DEBUG(result.unmatched());
 }
