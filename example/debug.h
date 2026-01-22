@@ -1,5 +1,7 @@
 #ifndef DEBUGH
 #define DEBUGH
+
+#include <iostream>
 #ifndef ONLINE_JUDGE
     #define DEBUG(...) debug(#__VA_ARGS__, __VA_ARGS__)
 #else 
