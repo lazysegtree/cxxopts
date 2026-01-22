@@ -29,7 +29,7 @@ int main(int argc, const char* argv[])
     {p, "-abo=hi"},
   };
   
-  cxxopts::values::parser_tool::ParseArgument();
+  //cxxopts::values::parser_tool::ParseArgument();
 
   for (auto p : vm) {
     std::regex pat(p.first);
