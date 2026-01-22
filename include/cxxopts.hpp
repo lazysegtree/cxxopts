@@ -783,7 +783,20 @@ const char* const falsy_pattern =
   "(f|F)(alse)?|0";
 CXXOPTS_LINKONCE
 const char* const option_pattern =
-  "--([[:alnum:]][-_[:alnum:]\\.]+)(=(.*))?|-([[:alnum:]].*)";
+  "--([[:alnum:]][-_[:alnum:]\\.]+)(=(.*))?|-([[:alnum:]])((=(.*))|(.*))";
+// <-------Long Option--------------------> <-----Short Option------->
+// Groups :
+//   <---------1------------------><--2-->   <--4--------><-----5------>
+//                                   <-3>                  <--6--> <-8>
+//                                                           <-7>
+const int LONG_NAME_IDX=1;
+const int LONG_MATCH_IDX=2;
+const int LONG_MATCH_VALUE_IDX=3;
+const int SHORT_NAME_IDX=4;
+const int SHORT_MATCH_IDX=6;
+const int SHORT_MATCH_VALUE_IDX=7;
+const int SHORT_GROUPING_IDX=8;
+
 CXXOPTS_LINKONCE
 const char* const option_specifier_pattern =
   "([[:alnum:]][-_[:alnum:]\\.]*)(,[ ]*[[:alnum:]][-_[:alnum:]]*)*";
@@ -863,21 +876,31 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
   std::regex_match(arg, result, option_matcher);
   matched = !result.empty();
 
+  // TODO: Should use ArguDesc agru_desc{} to be explicit?
   ArguDesc argu_desc;
   if (matched) {
-    argu_desc.arg_name = result[1].str();
-    argu_desc.set_value = result[2].length() > 0;
-    argu_desc.value = result[3].str();
-    if (result[4].length() > 0)
+    if(result[LONG_NAME_IDX].length() > 0) {
+      argu_desc.arg_name = result[LONG_NAME_IDX].str();
+      argu_desc.set_value = result[LONG_MATCH_IDX].length() > 0;
+      argu_desc.value = result[LONG_MATCH_VALUE_IDX].str();
+    }
+    else if (result[SHORT_NAME_IDX].length() > 0)
     {
       argu_desc.grouping = true;
-      argu_desc.arg_name = result[4].str();
+      argu_desc.arg_name = result[SHORT_NAME_IDX].str();
+      if(result[SHORT_MATCH_IDX].length() > 0){
+        argu_desc.set_value = true;
+        argu_desc.value = result[SHORT_MATCH_VALUE_IDX].str();
+      } else {
+        argu_desc.arg_name += result[SHORT_GROUPING_IDX].str();
+      }
     }
+    // Else no match. Return empty argu_desc object
     for(int i=0; i<result.size(); i++) {
       DEBUG(i, std::string(result[i]), result[i].matched);
     }
   }
-
+  DEBUG(argu_desc.arg_name, argu_desc.grouping, argu_desc.set_value, argu_desc.value);
   return argu_desc;
 }
 
@@ -2631,12 +2654,20 @@ OptionParser::parse(int argc, const char* const* argv)
             throw_or_mimic<exceptions::no_such_option>(name);
           }
 
+          // TODO: Its named value in this if condition
+          // But named opt in the other condition. Confusing
           auto value = iter->second;
 
           if (i + 1 == s.size())
           {
             //it must be the last argument
-            checked_parse_arg(argc, argv, current, value, name);
+            // Note : There is another implicit check inside
+            if (argu_desc.set_value) {
+              parse_option(value, name, argu_desc.value);
+            }
+            else{
+              checked_parse_arg(argc, argv, current, value, name);
+            }
           }
           else if (value->value().has_implicit())
           {
@@ -2648,6 +2679,8 @@ OptionParser::parse(int argc, const char* const* argv)
             parse_option(value, name, arg_value);
             break;
           }
+          // QUES: - Is this dead code?
+          // Above else-if will always be true if evaluated.
           else
           {
             //error
