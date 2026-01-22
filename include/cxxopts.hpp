@@ -44,6 +44,7 @@ THE SOFTWARE.
 #include <algorithm>
 #include <locale>
 #include "../example/debug.h"
+#include <iostream>
 
 #ifdef CXXOPTS_NO_EXCEPTIONS
 #include <iostream>
@@ -722,6 +723,7 @@ inline OptionNames split_option_names(const std::string &text)
 inline ArguDesc ParseArgument(const char *arg, bool &matched)
 {
   ArguDesc argu_desc;
+  // whycp
   const char *pdata = arg;
   matched = false;
   if (strncmp(pdata, "--", 2) == 0)
@@ -742,6 +744,7 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
         {
           argu_desc.set_value = true;
           pdata += 1;
+          // check not needed?
           if (*pdata != '\0')
           {
             argu_desc.value = std::string(pdata);
@@ -759,6 +762,7 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
   {
     pdata += 1;
     argu_desc.grouping = true;
+    // This is ([[:alnum:]]*) not ([[:alnum:]].*)
     while (isalnum(*pdata, std::locale::classic()))
     {
       argu_desc.arg_name.push_back(*pdata);
@@ -785,7 +789,7 @@ CXXOPTS_LINKONCE
 const char* const option_pattern =
   "--([[:alnum:]][-_[:alnum:]\\.]+)(=(.*))?|-([[:alnum:]])((=(.*))|(.*))";
 // <-------Long Option--------------------> <-----Short Option------->
-// Groups :
+// Groups (Make sure to adjust them if you change the regex) :
 //   <---------1------------------><--2-->   <--4--------><-----5------>
 //                                   <-3>                  <--6--> <-8>
 //                                                           <-7>
@@ -896,11 +900,11 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
       }
     }
     // Else no match. Return empty argu_desc object
-    for(int i=0; i<result.size(); i++) {
-      DEBUG(i, std::string(result[i]), result[i].matched);
-    }
+    //for(size_t i=0; i<result.size(); i++) {
+    //  DEBUG(i, std::string(result[i]), result[i].matched);
+    //}
   }
-  DEBUG(argu_desc.arg_name, argu_desc.grouping, argu_desc.set_value, argu_desc.value);
+  //DEBUG(argu_desc.arg_name, argu_desc.grouping, argu_desc.set_value, argu_desc.value);
   return argu_desc;
 }
 
@@ -2893,7 +2897,7 @@ Options::help_one_group(const std::string& g) const
   }
   longest = (std::min)(longest, OPTION_LONGEST);
 
-  std::cout << "[DEBUG] help_one_group, longest=" << longest << std::endl; 
+  //std::cout << "[DEBUG] help_one_group, longest=" << longest << std::endl; 
 
 
   //widest allowed description -- min 10 chars for helptext/line
@@ -2915,7 +2919,7 @@ Options::help_one_group(const std::string& g) const
 
     auto d = format_description(o, longest + OPTION_DESC_GAP, allowed, m_tab_expansion);
     
-    std::cout << "[DEBUG] help_one_group, ff=" << fiter->first << ", d=" << d << std::endl; 
+    //std::cout << "[DEBUG] help_one_group, ff=" << fiter->first << ", d=" << d << std::endl; 
     result += fiter->first;
     if (stringLength(fiter->first) > longest)
     {
@@ -2952,7 +2956,7 @@ Options::generate_group_help
     {
       continue;
     }
-    std::cout << "[DEBUG] group_help_text'" << group_help_text << "'" << std::endl; 
+    //std::cout << "[DEBUG] group_help_text'" << group_help_text << "'" << std::endl; 
     result += group_help_text;
     if (i < print_groups.size() - 1)
     {
