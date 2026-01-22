@@ -1,3 +1,5 @@
+#ifndef DEBUGH
+#define DEBUGH
 #ifndef ONLINE_JUDGE
     #define DEBUG(...) debug(#__VA_ARGS__, __VA_ARGS__)
 #else 
@@ -12,3 +14,5 @@ template<typename T> void debug(std::string s, T x) {std::cout << "" << s << " =
 template<typename T, typename... Args> void debug(std::string s, T x, Args... args) 
 {for (int i=0, b=0; i<(int)s.size(); i++) {if (s[i] == '(' || s[i] == '{') b++; else if (s[i] == ')' || s[i] == '}') b--; else if (s[i] == ',' && b == 0) {
 std::cout<< s.substr(0, i) << " = " << x << " | ";debug(s.substr(s.find_first_not_of(' ', i + 1)), args...); break;}}}
+
+#endif

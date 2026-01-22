@@ -43,6 +43,7 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 #include <locale>
+#include "../example/debug.h"
 
 #ifdef CXXOPTS_NO_EXCEPTIONS
 #include <iostream>
@@ -871,6 +872,9 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
     {
       argu_desc.grouping = true;
       argu_desc.arg_name = result[4].str();
+    }
+    for(int i=0; i<result.size(); i++) {
+      DEBUG(i, std::string(result[i]), result[i].matched);
     }
   }
 

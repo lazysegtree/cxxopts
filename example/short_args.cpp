@@ -11,8 +11,8 @@ int main(int argc, const char* argv[])
     ("o,option", "Opt", cxxopts::value<std::string>()->implicit_value("implicit"))
     ;
   
-  const char* argvb[] = {"./a.out", "-o=hi"};
+  //const char* argvb[] = {"./a.out", "-o=hi"};
   
-  auto res = options.parse(2, argvb)["option"].as<std::string>();
+  auto res = options.parse(argc, argv)["option"].as<std::string>();
   std::cout << "option is '" << res << "'\n";
 }
