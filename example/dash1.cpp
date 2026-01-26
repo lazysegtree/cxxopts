@@ -36,4 +36,11 @@ main(int argc, const char* argv[])
     another_cli_parse(res.size()+1, &argv[argc - res.size()-1] );
   } 
 
+  std::cout << "argv afterwards\n" ;
+
+  DEBUG(argc);
+  for (int i=0; i<argc; i++){
+    std::cout << "argv[i] = '" << argv[i] << "'\n";
+  }
+
 }

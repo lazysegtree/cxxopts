@@ -6,6 +6,9 @@
 
 int main(int argc, const char* argv[])
 {
+  for(int i=0; i<argc; i++){
+    DEBUG(i, argv[i]);
+  }
   cxxopts::Options options("TestProgram", "Sample argument parsing");
   options.add_options()
     ("vo", "Vector", cxxopts::value<std::vector<std::string>>())

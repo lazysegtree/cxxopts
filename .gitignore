@@ -61,6 +61,7 @@ log
 *.v3breakpoints
 gmon.out
 .DS_Store
+a.out
 
 # Doxygen
 doxygen.log

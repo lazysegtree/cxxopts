@@ -703,6 +703,7 @@ inline OptionNames split_option_names(const std::string &text)
     auto token_length = next_delimiter_pos - token_start_pos;
     // validate the token itself matches the regex /([:alnum:][-_[:alnum:]]*/
     {
+      // Can this be saved so that it doesn't have to be computed every time?
       const char* option_name_valid_chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz"
@@ -800,6 +801,11 @@ const int SHORT_NAME_IDX=4;
 const int SHORT_MATCH_IDX=6;
 const int SHORT_MATCH_VALUE_IDX=7;
 const int SHORT_GROUPING_IDX=8;
+
+// "abc.asdf,abc.df" not allowed. after ',', there is no . allowed
+// To all ? just add \\? in short opt
+// ?adf should be disallowed maybe not. Users can go haywire
+// How other parsers go around with '?' ?
 
 CXXOPTS_LINKONCE
 const char* const option_specifier_pattern =
