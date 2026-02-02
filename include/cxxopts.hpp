@@ -734,7 +734,7 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
     {
       argu_desc.arg_name.push_back(*pdata);
       pdata += 1;
-      while (isalnum(*pdata, std::locale::classic()) || *pdata == '-' || *pdata == '_')
+      while (isalnum(*pdata, std::locale::classic()) || *pdata == '-' || *pdata == '_' || *pdata == '.')
       {
         argu_desc.arg_name.push_back(*pdata);
         pdata += 1;
@@ -762,14 +762,19 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
   else if (strncmp(pdata, "-", 1) == 0)
   {
     pdata += 1;
-    argu_desc.grouping = true;
-    // This is ([[:alnum:]]*) not ([[:alnum:]].*)
-    while (isalnum(*pdata, std::locale::classic()))
-    {
-      argu_desc.arg_name.push_back(*pdata);
-      pdata += 1;
+    if(isalnum(*pdata, std::locale::classic())) {
+      // If we have '=' right after first alnum, its a match.
+      if(*(pdata+1) == '=') {
+        argu_desc.arg_name.push_back(*pdata);
+        argu_desc.set_value = true;
+        argu_desc.value = std::string(pdata+2);
+      }
+      else{
+        argu_desc.arg_name = std::string(pdata);
+      }
+      argu_desc.grouping = true;
+      matched = true;
     }
-    matched = !argu_desc.arg_name.empty() && *pdata == '\0';
   }
   return argu_desc;
 }
@@ -790,7 +795,7 @@ CXXOPTS_LINKONCE
 const char* const option_pattern =
   "--([[:alnum:]][-_[:alnum:]\\.]+)(=(.*))?|-([[:alnum:]])((=(.*))|(.*))";
 // <-------Long Option--------------------> <-----Short Option------->
-// Groups (Make sure to adjust them if you change the regex) :
+// Groups :
 //   <---------1------------------><--2-->   <--4--------><-----5------>
 //                                   <-3>                  <--6--> <-8>
 //                                                           <-7>
