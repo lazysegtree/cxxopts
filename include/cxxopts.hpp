@@ -793,7 +793,7 @@ const char* const falsy_pattern =
   "(f|F)(alse)?|0";
 CXXOPTS_LINKONCE
 const char* const option_pattern =
-  "--([[:alnum:]][-_[:alnum:]\\.]+)(=(.*))?|-([[:alnum:]])((=(.*))|(.*))";
+  "--([^-=][^=]+)(=(.*))?|-([^-=])((=(.*))|(.*))";
 // <-------Long Option--------------------> <-----Short Option------->
 // Groups :
 //   <---------1------------------><--2-->   <--4--------><-----5------>
@@ -812,9 +812,11 @@ const int SHORT_GROUPING_IDX=8;
 // ?adf should be disallowed maybe not. Users can go haywire
 // How other parsers go around with '?' ?
 
+// If I allow anything will people add control characters too? Like \x03 ?
+
 CXXOPTS_LINKONCE
 const char* const option_specifier_pattern =
-  "([[:alnum:]][-_[:alnum:]\\.]*)(,[ ]*[[:alnum:]][-_[:alnum:]]*)*";
+  "([^-=][^=]*)(,[ ]*[^-=][^=]*)*";
 CXXOPTS_LINKONCE
 const char* const option_specifier_separator_pattern = ", *";
 
