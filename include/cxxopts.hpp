@@ -704,14 +704,13 @@ inline OptionNames split_option_names(const std::string &text)
     // validate the token itself matches the regex /([:alnum:][-_[:alnum:]]*/
     {
       // Can this be saved so that it doesn't have to be computed every time?
-      // I guess we should be using isalnum
       const char* option_name_valid_chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz"
         "0123456789"
         "_-.?";
 
-      if (!(std::isalnum(text[token_start_pos], std::locale::classic()) || text[token_start_pos] == '?') ||
+      if (!std::isalnum(text[token_start_pos], std::locale::classic()) ||
           text.find_first_not_of(option_name_valid_chars, token_start_pos) < next_delimiter_pos) {
         throw_or_mimic<exceptions::invalid_option_format>(text);
       }
@@ -794,7 +793,7 @@ const char* const falsy_pattern =
   "(f|F)(alse)?|0";
 CXXOPTS_LINKONCE
 const char* const option_pattern =
-  "--([[:alnum:]\\?][-_[:alnum:]\\.\\?]+)(=(.*))?|-([[:alnum:]\\?])((=(.*))|(.*))";
+  "--([[:alnum:]][-_[:alnum:]\\.]+)(=(.*))?|-([[:alnum:]])((=(.*))|(.*))";
 // <-------Long Option--------------------> <-----Short Option------->
 // Groups :
 //   <---------1------------------><--2-->   <--4--------><-----5------>
@@ -812,11 +811,10 @@ const int SHORT_GROUPING_IDX=8;
 // To all ? just add \\? in short opt
 // ?adf should be disallowed maybe not. Users can go haywire
 // How other parsers go around with '?' ?
-// as caret doesn't need escaping in character class [] definitions, what about . and ? 
-// does caret even have a meaning mid regex ? "abc^d" ?
+
 CXXOPTS_LINKONCE
 const char* const option_specifier_pattern =
-  "([[:alnum:]\\?][-_[:alnum:]\\.\\?]*)(,[ ]*[[:alnum:]\\?][-_[:alnum:]\\.\\?]*)*";
+  "([[:alnum:]][-_[:alnum:]\\.]*)(,[ ]*[[:alnum:]][-_[:alnum:]]*)*";
 CXXOPTS_LINKONCE
 const char* const option_specifier_separator_pattern = ", *";
 
@@ -873,7 +871,6 @@ inline OptionNames split_option_names(const std::string &text)
   static const std::basic_regex<char> option_specifier_matcher(option_specifier_pattern);
   if (!std::regex_match(text.c_str(), option_specifier_matcher))
   {
-    std::cout << text << " can't match '" << option_specifier_pattern << "'\n";
     throw_or_mimic<exceptions::invalid_option_format>(text);
   }
 
@@ -2447,7 +2444,6 @@ OptionAdder::operator()
   case 0:
     break;
   default:
-    // TODO: Add more details like its due to too many short options
     throw_or_mimic<exceptions::invalid_option_format>(opts);
   };
 
