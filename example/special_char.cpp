@@ -13,8 +13,13 @@ int main(int argc, const char* argv[])
     ("????,help2", "Help")
     ("?help,help3", "Help")
     ("help?,help4", "Help")
+    ("@", "Help")
+    ("#,#a,ab>cd,<<<<", "Help")
+    ("\x01", "Help")
+    ("\xee", "Help")
     ;
   
   auto result = options.parse(argc, argv);
   DEBUG(result.arguments_string());
+  DEBUG(result["<<<<"].as<bool>());
 }
