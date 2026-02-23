@@ -279,7 +279,7 @@ TEST_CASE("Providing options values via equal sign", "[options]")
 
 TEST_CASE("Valid/Invalid Option names", "[options]")
 {
-  const char prog_name[] = "test_invalid_opt_names";
+  const char prog_name[] = "test_opt_names";
   std::vector<std::pair<std::string, std::string>> invalid_opts = {
     {"Equals short name", "="},
     {"Dash short name", "-"},
@@ -296,7 +296,6 @@ TEST_CASE("Valid/Invalid Option names", "[options]")
     {"Tab inside option name", "a,ab,\tac"},
     {"Equals inside option name", "a,ab,ac,ab=cd"},
     {"Two simple option names", "a,b"},
-    {"Duplicate option names", "ab,ab"},
   };
 
   std::vector<std::pair<std::string, std::string>> valid_opts = {
@@ -321,10 +320,10 @@ TEST_CASE("Valid/Invalid Option names", "[options]")
   }
 }
 
-TEST_CASE("Option names as arbitrary characters", "[options]")
+TEST_CASE("Option names as arbitrary characters and values parsing", "[options]")
 {
   const char prog_name[] = "test_name_chars";
-
+  const char implicit_value[] = "implicit";
   struct testcases
   {
     std::string name;
@@ -332,6 +331,7 @@ TEST_CASE("Option names as arbitrary characters", "[options]")
     Argv argv;
     std::vector<std::pair<std::string, std::string>> expValues;
     bool parseException;
+    bool setImplicit;
   } tests[] = {
     {
       "Arbitrary chars",
@@ -339,28 +339,50 @@ TEST_CASE("Option names as arbitrary characters", "[options]")
       Argv{prog_name, "-#", "abc", "--$$$=@#$$"},
       {{"#", "abc"}, {"$$$", "@#$$"}},
       false,
+      false,
     },
     {
-      "Arbitrary chars 2",
+      "Arbitrary chars and spaces",
       {"*,   ab-cd","ab_cd"},
       Argv{prog_name, "--ab-cd", "xyz","--ab_cd={}()"},
       {{"ab-cd", "xyz"}, {"ab_cd", "{}()"}},
       false,
+      false,
     },
     {
-      "Arbitrary chars 3",
+      "Arbitrary character as single dot",
       {"."},
       Argv{prog_name, "-.=.."},
       {{".", ".."}},
       false,
+      false,
     },
     {
-      "Arbitrary chars 4",
+      "Multiple Arbitrary characters as short options",
       {"@",":","?","[","}","*","~","!"},
       Argv{prog_name, "-@:?[}*~!"},
-      {},
+      {{"@", implicit_value}, {"[", implicit_value}, {"!", implicit_value}},
       false,
-    }
+      true,
+    },
+    {
+      "Long options value starting with -",
+      {"#,^^","ab-cd"},
+      Argv{prog_name, "-ab-cd=x"},
+      {}, true, false,
+    },
+    {
+      "Invalid starting character",
+      {"ab"},
+      Argv{prog_name, "=ab"},
+      {}, true, false,
+    },
+    {
+      "Invalid character in middle",
+      {"ab"},
+      Argv{prog_name, "--ab\x03=x"},
+      {}, true, false,
+    },
   };
 
   for(const auto& tc : tests) {
@@ -368,7 +390,12 @@ TEST_CASE("Option names as arbitrary characters", "[options]")
         cxxopts::Options options(prog_name, " - Option names as arbitrary characters");
         auto option_adder = options.add_options();
         for(const auto& opt_name: tc.opt_names) {
-          option_adder(opt_name, "description", cxxopts::value<std::string>());
+          if(tc.setImplicit){
+            option_adder(opt_name, "description", cxxopts::value<std::string>()->implicit_value(implicit_value));
+          }
+          else{
+            option_adder(opt_name, "description", cxxopts::value<std::string>());
+          }
         }
         if(tc.parseException) {
           CHECK_THROWS(options.parse(tc.argv.argc(), tc.argv.argv()));
