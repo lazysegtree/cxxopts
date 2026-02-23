@@ -279,7 +279,7 @@ TEST_CASE("Providing options values via equal sign", "[options]")
 
 TEST_CASE("Valid/Invalid Option names", "[options]")
 {
-  const char prog_name[] = "test_invalid_opt_names";
+  const char prog_name[] = "test_opt_names";
   std::vector<std::pair<std::string, std::string>> invalid_opts = {
     {"Equals short name", "="},
     {"Dash short name", "-"},
@@ -364,7 +364,25 @@ TEST_CASE("Option names as arbitrary characters and values parsing", "[options]"
       {{"@", implicit_value}, {"[", implicit_value}, {"!", implicit_value}},
       false,
       true,
-    }
+    },
+    {
+      "Long options value starting with -",
+      {"#,^^","ab-cd"},
+      Argv{prog_name, "-ab-cd=x"},
+      {}, true, false,
+    },
+    {
+      "Invalid starting character",
+      {"ab"},
+      Argv{prog_name, "=ab"},
+      {}, true, false,
+    },
+    {
+      "Invalid character in middle",
+      {"ab"},
+      Argv{prog_name, "--ab\x03=x"},
+      {}, true, false,
+    },
   };
 
   for(const auto& tc : tests) {
