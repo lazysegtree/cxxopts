@@ -1516,8 +1516,8 @@ class OptionDetails
 // Q - What s and l actually store?
 struct HelpOptionDetails
 {
-  std::string s;
-  OptionNames l;
+  std::string s; // short name
+  OptionNames l; // Vector of string long names
   String desc;
   bool has_default;
   std::string default_value;
@@ -2104,6 +2104,8 @@ class Options
   void
   parse_positional(std::initializer_list<std::string> options);
 
+  // Q - Will this allow all itertors? What if there is one of type that cannot be cast to 
+  // string?
   template <typename Iterator>
   void
   parse_positional(Iterator begin, Iterator end) {
@@ -2564,6 +2566,7 @@ OptionParser::add_to_option(const std::shared_ptr<OptionDetails>& value, const s
   m_sequential.emplace_back(value->essential_name(), arg);
 }
 
+// Return false when positionals are over, and/or when positional are not found in m_options
 inline
 bool
 OptionParser::consume_positional(const std::string& a, PositionalListIterator& next)
@@ -2571,10 +2574,14 @@ OptionParser::consume_positional(const std::string& a, PositionalListIterator& n
   while (next != m_positional.end())
   {
     auto iter = m_options.find(*next);
+    // Q : Why we need this check? We are always updatind m_options right? on changing of m_posiitional
     if (iter != m_options.end())
     {
+      // Q : What is is_container, what types return true for it.
       if (!iter->second->value().is_container())
       {
+        // What is m_parsed???
+        // iter has first string, second Cxxopts::OptionDetails
         auto& result = m_parsed[iter->second->hash()];
         if (result.count() == 0)
         {
@@ -2607,7 +2614,7 @@ Options::parse_positional(std::vector<std::string> options)
 {
   m_positional = std::move(options);
 
-  m_positional_set.insert(m_positional.begin(), m_positional.end());
+  m_positional_set = std::unordered_set<std::string>(m_positional.begin(), m_positional.end());
 }
 
 inline
@@ -2792,7 +2799,8 @@ OptionParser::parse(int argc, const char* const* argv)
       }
       ++current;
     }
-
+    // TODO: That is a misleading comment. This is a perfect example of why you should add minimal comments in code
+    // Prevent code changes to cause misleading stray comments.
     //adjust argv for any that couldn't be swallowed
     while (current != argc) {
       unmatched.emplace_back(argv[current]);
@@ -2916,8 +2924,18 @@ Options::help_one_group(const std::string& g) const
     result += toLocalString(" " + g + " options:\n");
   }
 
+  // group->second is HelpGroupDetail
+  // o is HelpOptionDetails
+  // 
   for (const auto& o : group->second.options)
   {
+    // Whether long exist and is in positional set and you don't want to show positionals
+    // m_show_positional is false by default.
+    // Decide whether to the entire option in help.
+    // Skip the option in help menu altogether if there is first long is in positional set
+    // Thats very weired log
+    // TODO: Fix??
+    DEBUG(m_positional_set, o.l);
     if (o.l.size() &&
         m_positional_set.find(o.l.front()) != m_positional_set.end() &&
         !m_show_positional)
@@ -2971,6 +2989,7 @@ Options::help_one_group(const std::string& g) const
 
     ++fiter;
   }
+  DEBUG(result);
 
   return result;
 }
