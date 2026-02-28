@@ -638,6 +638,59 @@ TEST_CASE("Boolean without implicit value", "[implicit]")
   }
 }
 
+
+
+TEST_CASE("Implicit value with disabled_args", "[no_value]")
+{
+  const char prog_name[] = "disabled_args";
+  cxxopts::Options options(prog_name, "Implicit value with disabled args");
+  options.add_options()
+    ("b,bool", "description", cxxopts::value<bool>()->implicit_value("true", true))
+    ("s,string", "description", cxxopts::value<std::string>()->implicit_value("value", true));
+  struct testcase{
+    std::string name;
+    // TODO: Some tests have camelCase . Fix them
+    bool parse_exception;
+    Argv argv;
+  } tests[] = {
+    {
+      "No exception",
+      false,
+      Argv{prog_name, "--bool"},
+    },
+    {
+      "exception due to value passed in long arg",
+      true,
+      Argv{prog_name, "--bool=true"},
+    },
+    {
+      "exception due to value passed in short arg",
+      true,
+      Argv{prog_name, "-b=true"},
+    },
+    {
+      "exception due to string value",
+      true,
+      Argv{prog_name, "-b", "--string=something_else"},
+    }
+  };
+
+  for(const auto& tc : tests) {
+    SECTION(tc.name){
+        if(tc.parse_exception) {
+          CHECK_THROWS_AS(options.parse(tc.argv.argc(), tc.argv.argv()),
+            cxxopts::exceptions::specified_disabled_args);
+          continue;
+        }
+    }
+  }
+}
+
+// TODO: You can fix duplication in the tests and use table driven test
+// Huge difference between maintainability/readability
+// And can easily cover more cases.
+// Not just this. Most of tests have scope. Can use AI for this.
+// This is a high value work
 TEST_CASE("Default values", "[default]")
 {
   cxxopts::Options options("defaults", "has defaults");

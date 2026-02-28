@@ -396,6 +396,9 @@ class Value : public std::enable_shared_from_this<Value>
   virtual bool
   has_implicit() const = 0;
 
+  virtual bool
+  has_disabled_args() const = 0;
+
   virtual std::string
   get_default_value() const = 0;
 
@@ -406,7 +409,7 @@ class Value : public std::enable_shared_from_this<Value>
   default_value(const std::string& value) = 0;
 
   virtual std::shared_ptr<Value>
-  implicit_value(const std::string& value) = 0;
+  implicit_value(const std::string& value, bool disable_args = false) = 0;
 
   virtual std::shared_ptr<Value>
   no_implicit_value() = 0;
@@ -482,6 +485,18 @@ class invalid_option_syntax : public parsing {
   explicit invalid_option_syntax(const std::string& text)
   : parsing("Argument " + LQUOTE + text + RQUOTE +
             " starts with a - but has incorrect syntax")
+  {
+  }
+};
+
+// TODO : We should be able to pass , const std::string& value
+// And say "but value" + LQUOTE + value + RQUOTE + " was specified"
+// But throw or mimic only allows single string
+class specified_disabled_args : public parsing {
+  public:
+  explicit specified_disabled_args(const std::string& text)
+  : parsing("Option " + LQUOTE + text + RQUOTE +
+            " has disabled_args but argument was specified")
   {
   }
 };
@@ -1284,6 +1299,12 @@ class abstract_value : public Value
     return m_implicit;
   }
 
+  bool
+  has_disabled_args() const override
+  {
+    return m_disabled_args;
+  }
+
   std::shared_ptr<Value>
   default_value(const std::string& value) override
   {
@@ -1293,10 +1314,11 @@ class abstract_value : public Value
   }
 
   std::shared_ptr<Value>
-  implicit_value(const std::string& value) override
+  implicit_value(const std::string& value, bool disabled_args = false) override
   {
     m_implicit = true;
     m_implicit_value = value;
+    m_disabled_args = disabled_args;
     return shared_from_this();
   }
 
@@ -1341,6 +1363,7 @@ class abstract_value : public Value
 
   bool m_default = false;
   bool m_implicit = false;
+  bool m_disabled_args = false;
 
   std::string m_default_value{};
   std::string m_implicit_value{};
@@ -1363,6 +1386,8 @@ class standard_value : public abstract_value<T>
 template <>
 class standard_value<bool> : public abstract_value<bool>
 {
+  // Question: Does this means bools are always implicit value true by default
+  // --bool true will not work by default?
   public:
   standard_value()
   {
@@ -2703,11 +2728,23 @@ OptionParser::parse(int argc, const char* const* argv)
           // But named opt in the other condition. Confusing
           auto value = iter->second;
 
+          // NOTE: This whole condition chain is very confusing and full of code duplication.
+          // I have to refactor it now.
+          // There is so much duplication with long option parsing too
+          // Its overwhelming to understand. Its bad. Its un maintainable.
+          // Any code change risks some kind of miss in one of the statements.
+          // But before you can refactor
+          // YOu need to understand it the whole conditional chain
+          // YOu must do one change before refactoring? As you are in early stage
+          // Then make a different commit for refactoring ensureing test pass in both
           if (i + 1 == s.size())
           {
             //it must be the last argument
             // Note : There is another implicit check inside
             if (argu_desc.set_value) {
+              if(value->value().has_disabled_args()){
+                throw_or_mimic<exceptions::specified_disabled_args>(name);
+              }
               parse_option(value, name, argu_desc.value);
             }
             else{
@@ -2752,11 +2789,16 @@ OptionParser::parse(int argc, const char* const* argv)
           throw_or_mimic<exceptions::no_such_option>(name);
         }
 
+        // TODO: Code is very inconsistent. Same thing is called `opt` here, and `value` in the
+        // branch of short options above. Fix it. Very bad readability
         auto opt = iter->second;
 
         //equals provided for long option?
         if (argu_desc.set_value)
         {
+          if(opt->value().has_disabled_args()){
+            throw_or_mimic<exceptions::specified_disabled_args>(name);
+          }
           //parse the option given
 
           parse_option(opt, name, argu_desc.value);
