@@ -2309,8 +2309,16 @@ format_description
     desc = desc2;
   }
 
+
+  // Why the fuck you have to add this??? 
+  // This already reeks of a bad algorithm. This needs to be simplified.
   desc += " ";
 
+  // Now need to understand this wrapping algo
+  // And do min changes and make this reusable and fix this
+  // And... then reuse for wrapping the main guy
+  
+  
   auto current = std::begin(desc);
   auto previous = current;
   auto startLine = current;
@@ -2323,6 +2331,7 @@ format_description
 
   while (current != std::end(desc))
   {
+    // Set this as false
     appendNewLine = false;
     if (*previous == ' ' || *previous == '\t')
     {
@@ -2333,13 +2342,17 @@ format_description
       onlyWhiteSpace = false;
     }
 
+    // Wouldn't this skip all new lines in desc. Apparently not
     while (*current == '\n')
     {
+      // We don't move startLine here
       previous = current;
       ++current;
       appendNewLine = true;
     }
+    DEBUG(*current, size, current - std::begin(desc), appendNewLine, result);
 
+    // Break the word or start with the last space
     if (!appendNewLine && size >= allowed)
     {
       if (lastSpace != startLine)
@@ -2348,26 +2361,41 @@ format_description
         previous = current;
       }
       appendNewLine = true;
+
+      DEBUG(*current, *previous, appendNewLine);
     }
 
+    // current will not be updated here in this if block. neither previous
     if (appendNewLine)
     {
       stringAppend(result, startLine, current);
       startLine = current;
       lastSpace = current;
 
+      // What is this complex complexity??? What is this for??
+      // Why so many fucking appends. Why isn't this simple.... THe fuckkkkk
       if (*previous != '\n')
       {
         stringAppend(result, "\n");
       }
 
+      // I don't think this should happen unconditionally
+      // This code need more comments. This algo is already buggy. 
+      // What if current is whitespace only and there is nothing more later...
+      // Then this results in extra padded spaces
       stringAppend(result, start, ' ');
 
+      // Twice ? previous is not newline ? That means .... ??? Its usual case
+      // lastSpace .. current ? Why not startLine .. current 
+      // Wait.. lastSpace is already set to current right? So .. this is dead code??
       if (*previous != '\n')
       {
         stringAppend(result, lastSpace, current);
       }
 
+      // If *current is actually the non-whitespace character but also the last character
+      // then onlyWhiteSpace stays true and last part is never merged to result
+      // Thats why 01234567890 gets printed as 0123456789 as seen in  help_wrap_bug2.cpp
       onlyWhiteSpace = true;
       size = 0;
     }
@@ -2380,10 +2408,31 @@ format_description
   //append whatever is left but ignore whitespace
   if (!onlyWhiteSpace)
   {
+    // What ?? Why previous? Why not current ? isn't current now at the end of desc ??
+    // Ohh - because we did desc += " " hack. Wow. Beautiful.
+    // Stupid fucking asshole algos like that. Pea brain dumb fucks.
     stringAppend(result, startLine, previous);
   }
 
   return result;
+}
+
+
+String 
+wrap_text
+(
+  const String& text,
+  std::size_t width,
+  std::size_t spaces_to_append_at_newline = 0
+)
+{
+  std::size_t cur_line_size = 0;
+  String result;
+
+  for(auto current = std::begin(text); current != std::end(text); current++) {
+
+  }
+  
 }
 
 } // namespace
@@ -2905,14 +2954,34 @@ Options::help_one_group(const std::string& g) const
     longest = (std::max)(longest, stringLength(s));
     format.push_back(std::make_pair(s, String()));
   }
+  // maximum display width of the full formatted left-hand help entry
+  // longest can be really big, or at least '4' 
+  // If no options. Code never reaches here and it stays as 0
+  DEBUG(longest);
   longest = (std::min)(longest, OPTION_LONGEST);
 
   //widest allowed description -- min 10 chars for helptext/line
   std::size_t allowed = 10;
+  DEBUG(m_width, allowed, longest, OPTION_DESC_GAP);
+  
+  // If allowed < m_width - longest - OPTION_DESC_GAP(2)
+  // --- col1---- ---gap--- ---allowed---
+  // ------------------m_width--------------------
+  // Grow a small allowed value. But Don't stop a large allowed value??
+
+
+  // Smaller m_width values basically doesn't matter at this point
+  // Anything smaller than min_longest + 10 + OPTION_DESC_GAP is pointless and is ignored by this part
+  // But may not be ignored by other parts
+  // min_longest can be '0'
+  // "Usage:" string needs at least 6 characters
+  // 
   if (m_width > allowed + longest + OPTION_DESC_GAP)
   {
     allowed = m_width - longest - OPTION_DESC_GAP;
   }
+
+  DEBUG(allowed);
 
   auto fiter = format.begin();
   for (const auto& o : group->second.options)
@@ -2927,6 +2996,10 @@ Options::help_one_group(const std::string& g) const
     auto d = format_description(o, longest + OPTION_DESC_GAP, allowed, m_tab_expansion);
 
     result += fiter->first;
+
+    // if the actual formatted option is longer than longest, cxxopts prints
+    // the option on its own line and starts the description
+    // on the next line, indented to the description column.
     if (stringLength(fiter->first) > longest)
     {
       result += '\n';
