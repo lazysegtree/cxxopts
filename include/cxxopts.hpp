@@ -2667,29 +2667,29 @@ OptionParser::parse(int argc, const char* const* argv)
             throw_or_mimic<exceptions::no_such_option>(name);
           }
 
-          auto value = iter->second;
+          auto opt = iter->second;
 
           if (i + 1 == s.size())
           {
             //it must be the last argument
             if (argu_desc.set_value) {
-              if(value->value().has_disabled_args()){
+              if(opt->value().has_disabled_args()){
                 throw_or_mimic<exceptions::specified_disabled_args>(name);
               }
-              parse_option(value, name, argu_desc.value);
+              parse_option(opt, name, argu_desc.value);
             }
             else{
-              checked_parse_arg(argc, argv, current, value, name);
+              checked_parse_arg(argc, argv, current, opt, name);
             }
           }
-          else if (value->value().has_implicit())
+          else if (opt->value().has_implicit())
           {
-            parse_option(value, name, value->value().get_implicit_value());
+            parse_option(opt, name, opt->value().get_implicit_value());
           }
           else if (i + 1 < s.size())
           {
             std::string arg_value = s.substr(i + 1);
-            parse_option(value, name, arg_value);
+            parse_option(opt, name, arg_value);
             break;
           }
           else
