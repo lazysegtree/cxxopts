@@ -2318,6 +2318,22 @@ format_description
   // And do min changes and make this reusable and fix this
   // And... then reuse for wrapping the main guy
   
+
+  // Confirmed bugs. Now I really need to partially rewrite this
+  /*
+    - High: it can drop characters when a long word wraps with no whitespace break. I reproduced "01234567890"
+    rendering as "0123456789". The root cause is the sentinel space at include/cxxopts.hpp:2315, then resetting
+    onlyWhiteSpace in the wrap branch at include/cxxopts.hpp:2399, and finally flushing only up to previous at
+    include/cxxopts.hpp:2414. That combination loses the final character of the last fragment.
+  - High: consecutive explicit newlines can drop real text after the newline run. I reproduced "a\n\nb" rendering
+    as a plus a blank indented line, with b missing. This comes from consuming \n in include/cxxopts.hpp:2346,
+    then taking the appendNewLine path at include/cxxopts.hpp:2369 where the post-newline state is reset
+    inconsistently.
+  - Medium: a description that ends with \n produces a spurious whitespace-only continuation line. I reproduced
+    "abc\n" rendering abc followed by an indented blank line. The immediate cause is the unconditional indent
+    append at include/cxxopts.hpp:2386 even when no non-whitespace content remains.
+
+  */
   
   auto current = std::begin(desc);
   auto previous = current;
