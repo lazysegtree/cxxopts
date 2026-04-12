@@ -43,8 +43,6 @@ THE SOFTWARE.
 #include <vector>
 #include <algorithm>
 #include <locale>
-#include "../example/debug.h"
-#include <iostream>
 
 #ifdef CXXOPTS_NO_EXCEPTIONS
 #include <iostream>
@@ -371,6 +369,11 @@ enum class ImplicitArgPolicy {
   Enabled
 };
 
+enum class PositionalMode {
+  Replace,
+  Append
+};
+
 // some older versions of GCC warn under this warning
 CXXOPTS_IGNORE_WARNING("-Weffc++")
 class Value : public std::enable_shared_from_this<Value>
@@ -474,8 +477,6 @@ class option_already_exists : public specification
   }
 };
 
-// TODO: Maybe have a seperate error "Expected <=1 short options" its confusing with
-// generic invalid format error
 class invalid_option_format : public specification
 {
   public:
@@ -494,9 +495,6 @@ class invalid_option_syntax : public parsing {
   }
 };
 
-// TODO : We should be able to pass , const std::string& value
-// And say "but value" + LQUOTE + value + RQUOTE + " was specified"
-// But throw or mimic only allows single string
 class specified_disabled_args : public parsing {
   public:
   explicit specified_disabled_args(const std::string& text)
@@ -731,8 +729,6 @@ inline OptionNames split_option_names(const std::string &text)
       next_delimiter_pos = length;
     }
     else if (next_delimiter_pos == token_start_pos) {
-      // TODO: Better to also add info like what is wrong.
-      // This throw is at too many places and is too generic
       throw_or_mimic<exceptions::invalid_option_format>(text);
     }
     else if(next_delimiter_pos == length-1) {
@@ -759,7 +755,6 @@ inline OptionNames split_option_names(const std::string &text)
 inline ArguDesc ParseArgument(const char *arg, bool &matched)
 {
   ArguDesc argu_desc;
-  // whycp
   const char *pdata = arg;
   matched = false;
   if (strncmp(pdata, "--", 2) == 0)
@@ -780,7 +775,6 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
         {
           argu_desc.set_value = true;
           pdata += 1;
-          // check not needed?
           if (*pdata != '\0')
           {
             argu_desc.value = std::string(pdata);
@@ -934,7 +928,6 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
   std::regex_match(arg, result, option_matcher);
   matched = !result.empty();
 
-  // TODO: Should use ArguDesc agru_desc{} to be explicit?
   ArguDesc argu_desc;
   if (matched) {
     if(result[LONG_NAME_IDX].length() > 0) {
@@ -953,12 +946,8 @@ inline ArguDesc ParseArgument(const char *arg, bool &matched)
         argu_desc.arg_name += result[SHORT_GROUPING_IDX].str();
       }
     }
-    // Else no match. Return empty argu_desc object
-    //for(size_t i=0; i<result.size(); i++) {
-    //  DEBUG(i, std::string(result[i]), result[i].matched);
-    //}
   }
-  //DEBUG(argu_desc.arg_name, argu_desc.grouping, argu_desc.set_value, argu_desc.value);
+
   return argu_desc;
 }
 
@@ -1368,7 +1357,6 @@ class abstract_value : public Value
 
   bool m_default = false;
   bool m_implicit = false;
-  bool m_disabled_args = false;
 
   // NOTE: Only meaningful when m_implicit == true
   ImplicitArgPolicy m_implicit_arg_policy = ImplicitArgPolicy::Enabled;
@@ -1394,8 +1382,6 @@ class standard_value : public abstract_value<T>
 template <>
 class standard_value<bool> : public abstract_value<bool>
 {
-  // Question: Does this means bools are always implicit value true by default
-  // --bool true will not work by default?
   public:
   standard_value()
   {
@@ -1546,11 +1532,10 @@ class OptionDetails
   std::size_t m_hash{};
 };
 
-// Q - What s and l actually store?
 struct HelpOptionDetails
 {
-  std::string s; // short name
-  OptionNames l; // Vector of string long names
+  std::string s;
+  OptionNames l;
   String desc;
   bool has_default;
   std::string default_value;
@@ -2129,20 +2114,18 @@ class Options
 
   //parse positional arguments into the given option
   void
-  parse_positional(std::string option);
+  parse_positional(std::string option, PositionalMode mode = PositionalMode::Replace);
 
   void
-  parse_positional(std::vector<std::string> options);
+  parse_positional(std::vector<std::string> options, PositionalMode mode = PositionalMode::Replace);
 
   void
-  parse_positional(std::initializer_list<std::string> options);
+  parse_positional(std::initializer_list<std::string> options, PositionalMode mode = PositionalMode::Replace);
 
-  // Q - Will this allow all itertors? What if there is one of type that cannot be cast to 
-  // string?
   template <typename Iterator>
   void
-  parse_positional(Iterator begin, Iterator end) {
-    parse_positional(std::vector<std::string>{begin, end});
+  parse_positional(Iterator begin, Iterator end, PositionalMode mode = PositionalMode::Replace) {
+    parse_positional(std::vector<std::string>{begin, end}, mode);
   }
 
   std::string
@@ -2233,10 +2216,6 @@ format_option
   const HelpOptionDetails& o
 )
 {
-  // TODO: figure out why 
-  // ("a,alpha,beta,gamma,delta", "Integer param with many names", cxxopts::value<int>())
-  // results in the o.l being 
-  // {delta, alpha, beta, gamma}
   const auto& s = o.s;
   const auto& l = first_or_empty(o.l);
 
@@ -2257,8 +2236,6 @@ format_option
 
   if (!l.empty())
   {
-    // Ques - Not doing toLocalString on " --" is good?
-    // 
     result += " --" + toLocalString(l);
   }
 
@@ -2280,18 +2257,19 @@ format_option
 }
 
 String
-format_description(const HelpOptionDetails& o,
-                   std::size_t start,   // spacing that is done before
-                   std::size_t allowed, // max char count in a line
-                   bool tab_expansion   // QUES: What is this?
+format_description
+(
+  const HelpOptionDetails& o,
+  std::size_t start,
+  std::size_t allowed,
+  bool tab_expansion
 )
 {
   auto desc = o.desc;
 
-  // If boolean is false by default, no need to print that
   if (o.has_default && (!o.is_boolean || o.default_value != "false"))
   {
-    if (!o.default_value.empty())
+    if(!o.default_value.empty())
     {
       desc += toLocalString(" (default: " + o.default_value + ")");
     }
@@ -2306,8 +2284,7 @@ format_description(const HelpOptionDetails& o,
   if (tab_expansion)
   {
     String desc2;
-    // size of the last line of the desc2
-    auto size = std::size_t{0};
+    auto size = std::size_t{ 0 };
     for (auto c = std::begin(desc); c != std::end(desc); ++c)
     {
       if (*c == '\n')
@@ -2317,9 +2294,6 @@ format_description(const HelpOptionDetails& o,
       }
       else if (*c == '\t')
       {
-        // QUES: Is this tabsize being hardcoded to 8?
-        // TODO: Should be fixed. Not everyone wants 8.
-        // Or at least should be a MACRO for clarity
         auto skip = 8 - size % 8;
         stringAppend(desc2, skip, ' ');
         size += skip;
@@ -2333,78 +2307,42 @@ format_description(const HelpOptionDetails& o,
     desc = desc2;
   }
 
-  // QUES: Why do this?
   desc += " ";
 
-  auto current   = std::begin(desc);
-  auto previous  = current;
+  auto current = std::begin(desc);
+  auto previous = current;
   auto startLine = current;
-
-  // This also stays invalid a lot of time
-  // lastspace doesn't point to a character that is actually space
   auto lastSpace = current;
 
-  // TODO: A few lines above we use `size = std::size_t{ 0 }`
-  // here we don't . So much inconsistency. Fix it
   auto size = std::size_t{};
 
   bool appendNewLine;
-
-  // Whether the current line is only made of whitespaces
   bool onlyWhiteSpace = true;
 
-  // TODO: Use `(auto c = std::begin(desc); c != std::end(desc); ++c)` for loop
-  // Be consistent. Maybe this one is better that way as
-  // ++current happens at multiple places.
   while (current != std::end(desc))
   {
-    // QUES: For the first iteration, previous isn't exactly previous
-    // ... ? ... Will that cause issues?
-    // What if desc starts with ' '
     appendNewLine = false;
-    // In case desc is icu::UnicodeString, will this be okay?
-    // This doesn't deals with unicode whitespaces
-    // QUES: should we use isspace?
     if (*previous == ' ' || *previous == '\t')
     {
       lastSpace = current;
     }
-    // This doesn't deals with unicode whitespaces
     if (*current != ' ' && *current != '\t')
     {
       onlyWhiteSpace = false;
     }
 
-    // QUES: What if I have desc with multiple \n\n, that will just ignore them?
-    // Its bad i think, reduces the possibilities of custom text
-    // TODO: Raise an issue maybe?
-    // TODO: What if desc is made up of only newlines
-    // At the end of the loop, will we
-    // end up deferencing *current which is
-    // std::end(desc) ?
-    // TODO: Check if desc starting with \n work
-    
     while (*current == '\n')
     {
       previous = current;
       ++current;
       appendNewLine = true;
-      if (current == std::end(desc)) {
-        std::cout<<"[DEBUG] About to dereference when current == std::end(desc)"<<std::endl;
-      }
     }
 
-    // TODO: Verify size is incremented after checking, so when size == allowed,
-    // we've already processed allowed + 1 characters before triggering the
-    // wrap. The first wrapped line is slightly longer than subsequent ones.
     if (!appendNewLine && size >= allowed)
     {
-      // QUES: wtf?
-      // This is kinda a check that lastSpace was never modified after last
-      // reset
       if (lastSpace != startLine)
       {
-        current  = lastSpace;
+        current = lastSpace;
         previous = current;
       }
       appendNewLine = true;
@@ -2423,26 +2361,21 @@ format_description(const HelpOptionDetails& o,
 
       stringAppend(result, start, ' ');
 
-      // QUES: Why twice?
-      // Dead code as lastSpace == current
-      // right now
-      // TODO: Remote it
       if (*previous != '\n')
       {
         stringAppend(result, lastSpace, current);
       }
 
       onlyWhiteSpace = true;
-      size           = 0;
+      size = 0;
     }
 
     previous = current;
     ++current;
-    //
     ++size;
   }
 
-  // append whatever is left but ignore whitespace
+  //append whatever is left but ignore whitespace
   if (!onlyWhiteSpace)
   {
     stringAppend(result, startLine, previous);
@@ -2599,7 +2532,6 @@ OptionParser::add_to_option(const std::shared_ptr<OptionDetails>& value, const s
   m_sequential.emplace_back(value->essential_name(), arg);
 }
 
-// Return false when positionals are over, and/or when positional are not found in m_options
 inline
 bool
 OptionParser::consume_positional(const std::string& a, PositionalListIterator& next)
@@ -2607,14 +2539,10 @@ OptionParser::consume_positional(const std::string& a, PositionalListIterator& n
   while (next != m_positional.end())
   {
     auto iter = m_options.find(*next);
-    // Q : Why we need this check? We are always updatind m_options right? on changing of m_posiitional
     if (iter != m_options.end())
     {
-      // Q : What is is_container, what types return true for it.
       if (!iter->second->value().is_container())
       {
-        // What is m_parsed???
-        // iter has first string, second Cxxopts::OptionDetails
         auto& result = m_parsed[iter->second->hash()];
         if (result.count() == 0)
         {
@@ -2636,25 +2564,32 @@ OptionParser::consume_positional(const std::string& a, PositionalListIterator& n
 
 inline
 void
-Options::parse_positional(std::string option)
+Options::parse_positional(std::string option, PositionalMode mode)
 {
-  parse_positional(std::vector<std::string>{std::move(option)});
+  parse_positional(std::vector<std::string>{std::move(option)}, mode);
 }
 
 inline
 void
-Options::parse_positional(std::vector<std::string> options)
+Options::parse_positional(std::vector<std::string> options, PositionalMode mode)
 {
-  m_positional = std::move(options);
-
-  m_positional_set = std::unordered_set<std::string>(m_positional.begin(), m_positional.end());
+  switch(mode){
+    case PositionalMode::Replace:
+      m_positional = std::move(options);
+      m_positional_set = std::unordered_set<std::string>(m_positional.begin(), m_positional.end());
+      break;
+    case PositionalMode::Append:
+      m_positional.insert(m_positional.end(), options.begin(), options.end());
+      m_positional_set.insert(options.begin(), options.end());
+      break;
+  }
 }
 
 inline
 void
-Options::parse_positional(std::initializer_list<std::string> options)
+Options::parse_positional(std::initializer_list<std::string> options, PositionalMode mode)
 {
-  parse_positional(std::vector<std::string>(options));
+  parse_positional(std::vector<std::string>(options), mode);
 }
 
 inline
@@ -2732,23 +2667,11 @@ OptionParser::parse(int argc, const char* const* argv)
             throw_or_mimic<exceptions::no_such_option>(name);
           }
 
-          // TODO: Its named value in this if condition
-          // But named opt in the other condition. Confusing
           auto value = iter->second;
 
-          // NOTE: This whole condition chain is very confusing and full of code duplication.
-          // I have to refactor it now.
-          // There is so much duplication with long option parsing too
-          // Its overwhelming to understand. Its bad. Its un maintainable.
-          // Any code change risks some kind of miss in one of the statements.
-          // But before you can refactor
-          // YOu need to understand it the whole conditional chain
-          // YOu must do one change before refactoring? As you are in early stage
-          // Then make a different commit for refactoring ensureing test pass in both
           if (i + 1 == s.size())
           {
             //it must be the last argument
-            // Note : There is another implicit check inside
             if (argu_desc.set_value) {
               if(value->value().has_disabled_args()){
                 throw_or_mimic<exceptions::specified_disabled_args>(name);
@@ -2769,8 +2692,6 @@ OptionParser::parse(int argc, const char* const* argv)
             parse_option(value, name, arg_value);
             break;
           }
-          // QUES: - Is this dead code?
-          // Above else-if will always be true if evaluated.
           else
           {
             //error
@@ -2797,8 +2718,6 @@ OptionParser::parse(int argc, const char* const* argv)
           throw_or_mimic<exceptions::no_such_option>(name);
         }
 
-        // TODO: Code is very inconsistent. Same thing is called `opt` here, and `value` in the
-        // branch of short options above. Fix it. Very bad readability
         auto opt = iter->second;
 
         //equals provided for long option?
@@ -2849,8 +2768,7 @@ OptionParser::parse(int argc, const char* const* argv)
       }
       ++current;
     }
-    // TODO: That is a misleading comment. This is a perfect example of why you should add minimal comments in code
-    // Prevent code changes to cause misleading stray comments.
+
     //adjust argv for any that couldn't be swallowed
     while (current != argc) {
       unmatched.emplace_back(argv[current]);
@@ -2967,25 +2885,13 @@ Options::help_one_group(const std::string& g) const
 
   std::size_t longest = 0;
 
-  // Question - can g be empty in a valid cases?
-  // Maybe when users add options with empty parameters
   if (!g.empty())
   {
     result += toLocalString(" " + g + " options:\n");
   }
 
-  // group->second is HelpGroupDetail
-  // o is HelpOptionDetails
-  // 
   for (const auto& o : group->second.options)
   {
-    // Whether long exist and is in positional set and you don't want to show positionals
-    // m_show_positional is false by default.
-    // Decide whether to the entire option in help.
-    // Skip the option in help menu altogether if there is first long is in positional set
-    // Thats very weired log
-    // TODO: Fix??
-    DEBUG(m_positional_set, o.l);
     if (o.l.size() &&
         m_positional_set.find(o.l.front()) != m_positional_set.end() &&
         !m_show_positional)
@@ -2998,9 +2904,6 @@ Options::help_one_group(const std::string& g) const
     format.push_back(std::make_pair(s, String()));
   }
   longest = (std::min)(longest, OPTION_LONGEST);
-
-  //std::cout << "[DEBUG] help_one_group, longest=" << longest << std::endl; 
-
 
   //widest allowed description -- min 10 chars for helptext/line
   std::size_t allowed = 10;
@@ -3020,8 +2923,7 @@ Options::help_one_group(const std::string& g) const
     }
 
     auto d = format_description(o, longest + OPTION_DESC_GAP, allowed, m_tab_expansion);
-    
-    //std::cout << "[DEBUG] help_one_group, ff=" << fiter->first << ", d=" << d << std::endl; 
+
     result += fiter->first;
     if (stringLength(fiter->first) > longest)
     {
@@ -3039,7 +2941,6 @@ Options::help_one_group(const std::string& g) const
 
     ++fiter;
   }
-  DEBUG(result);
 
   return result;
 }
@@ -3059,7 +2960,6 @@ Options::generate_group_help
     {
       continue;
     }
-    //std::cout << "[DEBUG] group_help_text'" << group_help_text << "'" << std::endl; 
     result += group_help_text;
     if (i < print_groups.size() - 1)
     {
