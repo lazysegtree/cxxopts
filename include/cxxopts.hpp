@@ -2212,6 +2212,139 @@ namespace {
 constexpr std::size_t OPTION_LONGEST = 30;
 constexpr std::size_t OPTION_DESC_GAP = 2;
 
+
+
+String 
+wrap_text
+(
+  const String& text,
+  std::size_t allowed,
+  std::size_t start = 0 // spaces_to_append_at_newline
+)
+{
+  String result;
+
+  auto current = std::begin(text);
+  auto startLine = current;
+  auto lastSpace = current;
+
+
+  auto size = std::size_t{};
+
+
+  bool onlyWhiteSpace = true;
+
+  // clamp spaces/add newlines on need basis
+  bool clampNeeded = false;
+  bool newLineBefore = false;
+
+  // Loop local variables ( not state variables). Kept outside to prevent repeated allocation.
+  // Ques : Is this worth it?
+  bool endLineHere;
+  auto endLine = current;
+  bool isLastChar = false;
+
+  // Loop invariants that must be true at the beginning of the loop
+  // 1 - [std::begin(desc), startLine) is already added to result
+  // 2a - startLine <= current
+  // 2b - currentLine [startLine, current) is not added to the result
+  // 3 - size is number of characters in [startLine, current)
+  // 4 - size <= allowed
+  // 5 - current is not part of the currentLine
+  // 6 - onlyWhiteSpace is true iff currentLine only contains whitespaces.
+  // 7 - lastSpace is default to startLine, and otherwise points to last space char
+
+  // Must be true at the end of the loop just before incrementing current
+  // 1 - size < allowed
+  // 
+
+  // At every loop we try to include current in the currentLine
+  // If there is a need to start a new line, *we do that first*
+
+  while (current != std::end(text))
+  {
+
+    // Reset
+    endLineHere = false;
+
+    if(*current == ' ' || *current == '\t' || *current == '\n') {
+      lastSpace = current;
+    } else {
+      onlyWhiteSpace = false;
+    }
+    size++;
+
+    // On adding current, we will reach the allowed size.
+    // Conclude the current line here 
+    if (size >= allowed) {
+      // Well we need to start a line now.
+
+      // But are we going to actually break a word?
+      // [startLine, current] contains only non-spaces
+      if (lastSpace == startLine) {
+        // [startLine, current] will be the line
+        endLine = current;
+      } else {
+        // [startLine, lastSpace] will be the line
+        endLine = lastSpace;
+      }
+      endLineHere = true;
+    }
+
+    // This is the last character. Conclude the line
+    if(std::next(current) == std::end(text)) {
+      endLine = current;
+      endLineHere = true;
+    }
+
+    // This is a newline char in the text itself.
+    if(*current == '\n') {
+      endLine = current;
+      if(onlyWhiteSpace) clampNeeded = false;
+      endLineHere = true;
+    }
+
+    // TODO: Handle last char and current being newline
+    DEBUG(size, *current, endLineHere, *endLine, onlyWhiteSpace);
+
+    if(endLineHere){
+
+      if(newLineBefore) {
+        // Ques : Is stringAppend(result, 1, '\n') faster?
+        stringAppend(result, "\n");
+      }
+      if(!onlyWhiteSpace){
+        if(clampNeeded) {
+          stringAppend(result, start, ' ');
+        }
+        stringAppend(result, startLine, std::next(endLine));
+
+      }
+      
+
+      if(endLine == current) {
+        onlyWhiteSpace = true; // reset to default
+      }
+
+      startLine = std::next(endLine);
+      lastSpace = startLine;
+
+      // Present Line is now [startLine, current] again.
+      size = std::distance(startLine, current) + 1;
+      
+      newLineBefore = true;
+      clampNeeded = true;
+    }
+    DEBUG(result, *startLine, onlyWhiteSpace);
+
+    // Ques: This or current++ ?
+    current = std::next(current);
+  }
+
+  return result;
+  
+}
+
 String
 format_option
 (
@@ -2281,7 +2414,7 @@ format_description
     }
   }
 
-  String result;
+  
 
   if (tab_expansion)
   {
@@ -2312,7 +2445,8 @@ format_description
 
   // Why the fuck you have to add this??? 
   // This already reeks of a bad algorithm. This needs to be simplified.
-  desc += " ";
+  
+  //desc += " ";
 
   // Now need to understand this wrapping algo
   // And do min changes and make this reusable and fix this
@@ -2334,122 +2468,9 @@ format_description
     append at include/cxxopts.hpp:2386 even when no non-whitespace content remains.
 
   */
-  
-  auto current = std::begin(desc);
-  auto previous = current;
-  auto startLine = current;
-  auto lastSpace = current;
-
-  auto size = std::size_t{};
-
-  bool appendNewLine;
-  bool onlyWhiteSpace = true;
-
-  while (current != std::end(desc))
-  {
-    // Set this as false
-    appendNewLine = false;
-    if (*previous == ' ' || *previous == '\t')
-    {
-      lastSpace = current;
-    }
-    if (*current != ' ' && *current != '\t')
-    {
-      onlyWhiteSpace = false;
-    }
-
-    // Wouldn't this skip all new lines in desc. Apparently not
-    while (*current == '\n')
-    {
-      // We don't move startLine here
-      previous = current;
-      ++current;
-      appendNewLine = true;
-    }
-    DEBUG(*current, size, current - std::begin(desc), appendNewLine, result);
-
-    // Break the word or start with the last space
-    if (!appendNewLine && size >= allowed)
-    {
-      if (lastSpace != startLine)
-      {
-        current = lastSpace;
-        previous = current;
-      }
-      appendNewLine = true;
-
-      DEBUG(*current, *previous, appendNewLine);
-    }
-
-    // current will not be updated here in this if block. neither previous
-    if (appendNewLine)
-    {
-      stringAppend(result, startLine, current);
-      startLine = current;
-      lastSpace = current;
-
-      // What is this complex complexity??? What is this for??
-      // Why so many fucking appends. Why isn't this simple.... THe fuckkkkk
-      if (*previous != '\n')
-      {
-        stringAppend(result, "\n");
-      }
-
-      // I don't think this should happen unconditionally
-      // This code need more comments. This algo is already buggy. 
-      // What if current is whitespace only and there is nothing more later...
-      // Then this results in extra padded spaces
-      stringAppend(result, start, ' ');
-
-      // Twice ? previous is not newline ? That means .... ??? Its usual case
-      // lastSpace .. current ? Why not startLine .. current 
-      // Wait.. lastSpace is already set to current right? So .. this is dead code??
-      if (*previous != '\n')
-      {
-        stringAppend(result, lastSpace, current);
-      }
-
-      // If *current is actually the non-whitespace character but also the last character
-      // then onlyWhiteSpace stays true and last part is never merged to result
-      // Thats why 01234567890 gets printed as 0123456789 as seen in  help_wrap_bug2.cpp
-      onlyWhiteSpace = true;
-      size = 0;
-    }
-
-    previous = current;
-    ++current;
-    ++size;
-  }
-
-  //append whatever is left but ignore whitespace
-  if (!onlyWhiteSpace)
-  {
-    // What ?? Why previous? Why not current ? isn't current now at the end of desc ??
-    // Ohh - because we did desc += " " hack. Wow. Beautiful.
-    // Stupid fucking asshole algos like that. Pea brain dumb fucks.
-    stringAppend(result, startLine, previous);
-  }
-
-  return result;
+  return wrap_text(desc, allowed, start);
 }
 
-
-String 
-wrap_text
-(
-  const String& text,
-  std::size_t width,
-  std::size_t spaces_to_append_at_newline = 0
-)
-{
-  std::size_t cur_line_size = 0;
-  String result;
-
-  for(auto current = std::begin(text); current != std::end(text); current++) {
-
-  }
-  
-}
 
 } // namespace
 
