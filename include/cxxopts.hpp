@@ -45,6 +45,7 @@ THE SOFTWARE.
 #include <locale>
 
 #include "../example/debug.h"
+#include <cassert>
 
 #ifdef CXXOPTS_NO_EXCEPTIONS
 #include <iostream>
@@ -2231,28 +2232,20 @@ wrap_text
 
   auto size = std::size_t{};
 
-
-  bool onlyWhiteSpace = true;
-
   // clamp spaces/add newlines on need basis
-  bool clampNeeded = false;
-  bool newLineBefore = false;
-
-  // Loop local variables ( not state variables). Kept outside to prevent repeated allocation.
-  // Ques : Is this worth it?
-  bool endLineHere;
-  auto endLine = current;
-  bool isLastChar = false;
+  bool firstLine = true;
 
   // Loop invariants that must be true at the beginning of the loop
   // 1 - [std::begin(desc), startLine) is already added to result
   // 2a - startLine <= current
   // 2b - currentLine [startLine, current) is not added to the result
   // 3 - size is number of characters in [startLine, current)
-  // 4 - size <= allowed
+  // 4 - size < allowed
   // 5 - current is not part of the currentLine
   // 6 - onlyWhiteSpace is true iff currentLine only contains whitespaces.
   // 7 - lastSpace is default to startLine, and otherwise points to last space char
+  // Ques: Can lastSpace be startLine and still point to space char. Is that possible? 
+  
 
   // Must be true at the end of the loop just before incrementing current
   // 1 - size < allowed
@@ -2261,84 +2254,122 @@ wrap_text
   // At every loop we try to include current in the currentLine
   // If there is a need to start a new line, *we do that first*
 
-  while (current != std::end(text))
+  // boundary whitespace normalization is deferred
+  for (; current != std::end(text); ++current)
   {
-
-    // Reset
-    endLineHere = false;
-
-    if(*current == ' ' || *current == '\t' || *current == '\n') {
-      lastSpace = current;
-    } else {
-      onlyWhiteSpace = false;
-    }
-    size++;
-
-    // On adding current, we will reach the allowed size.
-    // Conclude the current line here 
-    if (size >= allowed) {
-      // Well we need to start a line now.
-
-      // But are we going to actually break a word?
-      // [startLine, current] contains only non-spaces
-      if (lastSpace == startLine) {
-        // [startLine, current] will be the line
-        endLine = current;
-      } else {
-        // [startLine, lastSpace] will be the line
-        endLine = lastSpace;
-      }
-      endLineHere = true;
-    }
-
-    // This is the last character. Conclude the line
-    if(std::next(current) == std::end(text)) {
-      endLine = current;
-      endLineHere = true;
-    }
-
-    // This is a newline char in the text itself.
+    // Ignore the content and start a new line at the end of the loop
+    bool resetLine = false;
+    // Newlines are separately handled otherwise the later conditions can grow very complex
     if(*current == '\n') {
-      endLine = current;
-      if(onlyWhiteSpace) clampNeeded = false;
-      endLineHere = true;
-    }
-
-    // TODO: Handle last char and current being newline
-    DEBUG(size, *current, endLineHere, *endLine, onlyWhiteSpace);
-
-    if(endLineHere){
-
-      if(newLineBefore) {
-        // Ques : Is stringAppend(result, 1, '\n') faster?
-        stringAppend(result, "\n");
+      // Explicitly need to start a new line irrespective of size
+      if(!firstLine) {
+        stringAppend(result, 1, '\n');
       }
-      if(!onlyWhiteSpace){
-        if(clampNeeded) {
+      if(startLine != current) {
+        // Clamp is necessary because there is acutal content
+        stringAppend(result, start, ' ');
+        stringAppend(result, startLine, current);
+      }
+
+      resetLine = true;
+      startLine = std::next(current);
+    } else {
+      
+      if(*current == ' ' || *current == '\t') {
+        if(startLine == current) {
+          // Don't use a while loop as you would need to handle all cases of *current
+          // If you increment it here. Like '\n'
+          // Ignore leading whiltespaces. Start from next
+          resetLine = true;
+          startLine = std::next(current);
+        } else {
+          lastSpace = current;
+        }
+        
+      }
+      
+      // Now we are actually considering current inside currentLine
+      size++;
+
+      bool endLineHere = false;
+      auto endLine = current;
+      auto startOfNewLine = std::next(current);
+
+      // On adding current, we reached the allowed size.
+      // Conclude the current line here 
+      if (size >= allowed) {
+        // Well we need to start a line now.
+
+        // But are we going to actually break a word?
+        // [startLine, current] contains only non-spaces
+        if (lastSpace == startLine) {
+          // lastSpace is set to the default value. No space was found.
+          // Actually break the word
+          // [startLine, current] will be the line
+          
+          // Default
+          // endLine = current;
+          // Default
+          // startOfNewLine = std::next(current);
+        } else {
+          // [startLine, lastSpace] will be the line
+          endLine = lastSpace;
+          while(*endLine == ' ' || *endLine == '\t') {
+            --endLine;
+          }
+          startOfNewLine = std::next(lastSpace);
+        }
+        endLineHere = true;
+      }
+
+      // This is the last character. Conclude the line
+      if(std::next(current) == std::end(text)) {
+        // Default
+        // endLine = current;
+        endLineHere = true;
+        // Default value
+        // startOfNewLine = std::next(current);
+      }
+      DEBUG(*current, endLineHere, size, resetLine, *startLine, *startOfNewLine, result);
+      if(!resetLine && endLineHere){
+
+        if(!firstLine) {
+          stringAppend(result, 1, '\n');
           stringAppend(result, start, ' ');
         }
         stringAppend(result, startLine, std::next(endLine));
 
+        resetLine = true;
+        startLine = startOfNewLine;
+
+        // Ques: Any better way to deal with it?
+        if(startLine  != std::end(text) && *startLine == '\n'){
+          // No need to consider the next newline as a lone new line as we already will 
+          // append a new line because of newLineBefore
+          ++startLine;
+        }
       }
-      
 
-      if(endLine == current) {
-        onlyWhiteSpace = true; // reset to default
-      }
-
-      startLine = std::next(endLine);
-      lastSpace = startLine;
-
-      // Present Line is now [startLine, current] again.
-      size = std::distance(startLine, current) + 1;
-      
-      newLineBefore = true;
-      clampNeeded = true;
     }
-    DEBUG(result, *startLine, onlyWhiteSpace);
 
-    // Ques: This or current++ ?
-    current = std::next(current);
+    //DEBUG(size, *current, endLineHere, *endLine, onlyWhiteSpace);
+
+   
+    //DEBUG(result, *startLine, onlyWhiteSpace);
+    if (resetLine) {
+      // startLine is set
+      // Reset happened.
+      lastSpace = startLine;
+      
+      // Present Line is now [startLine, current] again.
+      // Will this cause issues if std::next(current) < startLine
+      // Ques : Should use Defensive programming here ?
+      // Ques : Is it really possible in any edge case? Does the current algo really allows it?
+      size = std::distance(startLine, std::next(current));
+      firstLine = false;
+    }
+
+    
   }
 
   return result;
