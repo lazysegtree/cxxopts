@@ -2234,7 +2234,7 @@ wrap_text
 
   // clamp spaces/add newlines on need basis
   bool firstLine = true;
-
+  bool newLinesAdded = false;
   // Loop invariants that must be true at the beginning of the loop
   // 1 - [std::begin(desc), startLine) is already added to result
   // 2a - startLine <= current
@@ -2261,15 +2261,20 @@ wrap_text
     bool resetLine = false;
     // Newlines are separately handled otherwise the later conditions can grow very complex
     if(*current == '\n') {
+      DEBUG(*current, result);
+      
       // Explicitly need to start a new line irrespective of size
-      if(!firstLine) {
-        stringAppend(result, 1, '\n');
-      }
+
+      
       if(startLine != current) {
         // Clamp is necessary because there is acutal content
-        stringAppend(result, start, ' ');
+        if(!firstLine) stringAppend(result, start, ' ');
         stringAppend(result, startLine, current);
       }
+
+      stringAppend(result, 1, '\n');
+      newLinesAdded = true;
+      firstLine = false;
 
       resetLine = true;
       startLine = std::next(current);
@@ -2311,6 +2316,14 @@ wrap_text
           // endLine = current;
           // Default
           // startOfNewLine = std::next(current);
+        } else if
+        (
+          *current != ' ' && *current != '\t' && 
+            (std::next(current) == std::end(text) || *std::next(current)==' ' || 
+              *std::next(current)=='\t' || *std::next(current)=='\n') 
+        )
+        {
+          // If current is at a word boundary then its okay
         } else {
           // [startLine, lastSpace] will be the line
           endLine = lastSpace;
@@ -2330,24 +2343,29 @@ wrap_text
         // Default value
         // startOfNewLine = std::next(current);
       }
-      DEBUG(*current, endLineHere, size, resetLine, *startLine, *startOfNewLine, result);
+      DEBUG(*current, endLineHere, size, resetLine, newLinesAdded, firstLine, *startLine, *endLine, *startOfNewLine, result);
       if(!resetLine && endLineHere){
 
         if(!firstLine) {
-          stringAppend(result, 1, '\n');
+          if(!newLinesAdded) stringAppend(result, 1, '\n');
           stringAppend(result, start, ' ');
         }
         stringAppend(result, startLine, std::next(endLine));
+        firstLine = false;
+
+        newLinesAdded = false;
 
         resetLine = true;
         startLine = startOfNewLine;
 
         // Ques: Any better way to deal with it?
-        if(startLine  != std::end(text) && *startLine == '\n'){
-          // No need to consider the next newline as a lone new line as we already will 
-          // append a new line because of newLineBefore
-          ++startLine;
-        }
+        //if(startLine  != std::end(text) && *startLine == '\n'){
+        //  // No need to consider the next newline as a lone new line as we already will 
+        //  // append a new line because of newLineBefore
+        //  ++startLine;
+        //  ++current;
+        //  DEBUG("hack1");
+        //}
       }
 
     }
@@ -2355,7 +2373,7 @@ wrap_text
     //DEBUG(size, *current, endLineHere, *endLine, onlyWhiteSpace);
 
    
-    //DEBUG(result, *startLine, onlyWhiteSpace);
+    DEBUG(resetLine, *startLine, *current, firstLine, result);
     if (resetLine) {
       // startLine is set
       // Reset happened.
@@ -2366,7 +2384,9 @@ wrap_text
       // Ques : Should use Defensive programming here ?
       // Ques : Is it really possible in any edge case? Does the current algo really allows it?
       size = std::distance(startLine, std::next(current));
-      firstLine = false;
+  
+      
+
     }
 
     
