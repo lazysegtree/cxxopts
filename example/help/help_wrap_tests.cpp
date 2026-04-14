@@ -198,6 +198,27 @@ test_wrap()
       "  d\n"
       "  ef"
     },
+    {
+      "Edge case of minimum width",
+      "abc\nx  y\n  z",
+      1,
+      1,
+      "a\n"
+      " b\n"
+      " c\n"
+      "\n"
+      " x\n"
+      " y\n"
+      "\n"
+      " z"
+    },
+    {
+      "0 allowed",
+      "abc",
+      0,
+      1,
+      "",
+    }
   };
 
   auto failures = 0;

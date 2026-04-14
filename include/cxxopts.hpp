@@ -2235,6 +2235,7 @@ wrap_text
   // clamp spaces/add newlines on need basis
   bool firstLine = true;
   bool newLinesAdded = false;
+  bool needPrependNewline = true;
   // Loop invariants that must be true at the beginning of the loop
   // 1 - [std::begin(desc), startLine) is already added to result
   // 2a - startLine <= current
@@ -2254,142 +2255,101 @@ wrap_text
   // At every loop we try to include current in the currentLine
   // If there is a need to start a new line, *we do that first*
 
-  // boundary whitespace normalization is deferred
+  // Ques: Are lambda functions slow ? Can the be inlined ? 
+  auto is_space = [&](String::const_iterator itr) -> bool {
+    return *itr == ' ' || *itr == '\t' || *itr == '\n';
+  };
+
+  // Ensure startLine <= endLine
+  auto add_line = [&](String::const_iterator startLine, String::const_iterator endLine) {
+    // startLine == endLine means empty line
+    // Handle newlines, clamping, everything here
+    if(!firstLine && needPrependNewline) {
+      stringAppend(result, 1, '\n');
+    }
+
+    // Trim trailing spaces
+    // Note: Its possible to be left with empty line after trim
+    // So this trimming should be done before the next check.
+    while(endLine != startLine && is_space(std::prev(endLine))) {
+      --endLine;
+    }
+
+    // Actual Content
+    if(startLine != endLine) {
+      
+      // Clamp if not the first line
+      if(!firstLine) stringAppend(result, start, ' ');
+      stringAppend(result, startLine, endLine);
+    }
+
+    firstLine = false;
+  };
+
+  // Make the line [itr, current]
+  // It is assumed, as a special case for the below algorithm
+  // that [itr, current] doesn't contains any space.
+  // either its called with itr = std::next(current)
+  // or with an itr <= current in case of word splitting 
+  auto reset_line_start = [&](String::const_iterator itr) {
+    startLine = itr;
+    lastSpace = startLine;
+    size = std::distance(startLine, std::next(current));
+  };
+
+
   for (; current != std::end(text); ++current)
   {
-    // Ignore the content and start a new line at the end of the loop
-    bool resetLine = false;
-    // Newlines are separately handled otherwise the later conditions can grow very complex
     if(*current == '\n') {
-      DEBUG(*current, result);
-      
-      // Explicitly need to start a new line irrespective of size
-
-      
-      if(startLine != current) {
-        // Clamp is necessary because there is acutal content
-        if(!firstLine) stringAppend(result, start, ' ');
-        stringAppend(result, startLine, current);
+      add_line(startLine, current);
+      reset_line_start(std::next(current));
+      if(std::next(current)==std::end(text)) {
+        // Last character is a newline. Hence there is another line to be added. An empty one
+        // And we need to do that now as we don't be doing further iterations
+        add_line(std::next(current), std::next(current));
       }
+      needPrependNewline = false;
 
-      stringAppend(result, 1, '\n');
-      newLinesAdded = true;
-      firstLine = false;
-
-      resetLine = true;
-      startLine = std::next(current);
+    } else if(is_space(current) && size == 0) {
+      // Ignore leading spaces
+      reset_line_start(std::next(current));
     } else {
-      
-      if(*current == ' ' || *current == '\t') {
-        if(startLine == current) {
-          // Don't use a while loop as you would need to handle all cases of *current
-          // If you increment it here. Like '\n'
-          // Ignore leading whiltespaces. Start from next
-          resetLine = true;
-          startLine = std::next(current);
-        } else {
-          lastSpace = current;
-        }
-        
+      size ++ ;
+      if(is_space(current)) {
+        lastSpace = current;
       }
+      bool endHere = false;
+      auto endLine = std::next(current); // [startLine, endLine)
+      auto nextLineStart = std::next(current); // 
       
-      // Now we are actually considering current inside currentLine
-      size++;
-
-      bool endLineHere = false;
-      auto endLine = current;
-      auto startOfNewLine = std::next(current);
-
-      // On adding current, we reached the allowed size.
-      // Conclude the current line here 
-      if (size >= allowed) {
-        // Well we need to start a line now.
-
-        // But are we going to actually break a word?
-        // [startLine, current] contains only non-spaces
-        if (lastSpace == startLine) {
-          // lastSpace is set to the default value. No space was found.
-          // Actually break the word
-          // [startLine, current] will be the line
-          
-          // Default
-          // endLine = current;
-          // Default
-          // startOfNewLine = std::next(current);
-        } else if
-        (
-          *current != ' ' && *current != '\t' && 
-            (std::next(current) == std::end(text) || *std::next(current)==' ' || 
-              *std::next(current)=='\t' || *std::next(current)=='\n') 
-        )
-        {
-          // If current is at a word boundary then its okay
-        } else {
-          // [startLine, lastSpace] will be the line
-          endLine = lastSpace;
-          while(*endLine == ' ' || *endLine == '\t') {
-            --endLine;
-          }
-          startOfNewLine = std::next(lastSpace);
-        }
-        endLineHere = true;
-      }
-
-      // This is the last character. Conclude the line
       if(std::next(current) == std::end(text)) {
-        // Default
-        // endLine = current;
-        endLineHere = true;
-        // Default value
-        // startOfNewLine = std::next(current);
+        endHere = true;
       }
-      DEBUG(*current, endLineHere, size, resetLine, newLinesAdded, firstLine, *startLine, *endLine, *startOfNewLine, result);
-      if(!resetLine && endLineHere){
-
-        if(!firstLine) {
-          if(!newLinesAdded) stringAppend(result, 1, '\n');
-          stringAppend(result, start, ' ');
+      else if(size >= allowed) {
+        if(lastSpace == startLine) 
+        {
+          // Pure non-space text. Have to split
+        } else if (lastSpace == current) {
+          // Ending with space. Split here. add_line() will take care of trimming
+        } else {
+          // Space somewhere in between. 
+          // Case-I Current is at the word boundary, Just split at the end
+          if(is_space(std::next(current))) {
+          }
+          // Case-II Current is not at the word bound. Split the line from last space
+          else {
+            nextLineStart = endLine = std::next(lastSpace);
+          }
         }
-        stringAppend(result, startLine, std::next(endLine));
-        firstLine = false;
-
-        newLinesAdded = false;
-
-        resetLine = true;
-        startLine = startOfNewLine;
-
-        // Ques: Any better way to deal with it?
-        //if(startLine  != std::end(text) && *startLine == '\n'){
-        //  // No need to consider the next newline as a lone new line as we already will 
-        //  // append a new line because of newLineBefore
-        //  ++startLine;
-        //  ++current;
-        //  DEBUG("hack1");
-        //}
+        endHere = true;
       }
 
+      if(endHere) {
+        add_line(startLine, endLine);
+        reset_line_start(nextLineStart);
+        needPrependNewline = true;
+      }
     }
-
-    //DEBUG(size, *current, endLineHere, *endLine, onlyWhiteSpace);
-
-   
-    DEBUG(resetLine, *startLine, *current, firstLine, result);
-    if (resetLine) {
-      // startLine is set
-      // Reset happened.
-      lastSpace = startLine;
-      
-      // Present Line is now [startLine, current] again.
-      // Will this cause issues if std::next(current) < startLine
-      // Ques : Should use Defensive programming here ?
-      // Ques : Is it really possible in any edge case? Does the current algo really allows it?
-      size = std::distance(startLine, std::next(current));
-  
-      
-
-    }
-
-    
   }
 
   return result;
