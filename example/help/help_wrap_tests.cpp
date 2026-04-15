@@ -100,6 +100,20 @@ test_wrap()
       "abc\n"
     },
     {
+      "Trailing spaces after final newline preserve newline",
+      "abc\n   ",
+      5,
+      2,
+      "abc\n"
+    },
+    {
+      "Whitespace around final newline preserves blank line",
+      "   \n   ",
+      5,
+      2,
+      "\n"
+    },
+    {
       "Consecutive newlines stay consecutive",
       "a\n\nb",
       3,

@@ -2312,9 +2312,6 @@ wrap_text
         add_line(std::next(current), std::next(current));
       }
 
-    } else if(is_space(current) && size == 0) {
-      // Ignore leading spaces
-      reset_line_start(std::next(current));
     } else {
       size ++ ;
       if(is_space(current)) {
@@ -2325,6 +2322,10 @@ wrap_text
       
       if(std::next(current) == std::end(text)) {
         endHere = true;
+      }
+      else if(is_space(current) && size == 1) {
+        // Ignore leading spaces
+        reset_line_start(std::next(current));
       }
       else if (is_space(std::next(current))) {
         // Don't break. Think of cases 'abc   \nxyz' with allowed=5
