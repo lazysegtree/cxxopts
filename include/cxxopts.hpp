@@ -2257,12 +2257,12 @@ wrap_text
   // If there is a need to start a new line, *we do that first*
 
   // Ques: Are lambda functions slow ? Can the be inlined ? 
-  auto is_space = [&](String::const_iterator itr) -> bool {
+  auto is_space = [](String::const_iterator itr) -> bool {
     return *itr == ' ' || *itr == '\t' || *itr == '\n';
   };
 
   // Ensure startLine <= endLine
-  auto add_line = [&](String::const_iterator startLine, String::const_iterator endLine) {
+  auto add_line = [&firstLine, &result, &is_space, &start](String::const_iterator startLine, String::const_iterator endLine) {
     // startLine == endLine means empty line
     // Handle newlines, clamping, everything here
     if(!firstLine) {
@@ -2292,9 +2292,11 @@ wrap_text
   // that [itr, current] doesn't contains any space.
   // either its called with itr = std::next(current)
   // or with an itr <= current in case of word splitting 
-  auto reset_line_start = [&](String::const_iterator itr) {
+  auto reset_line_start = [&size, &startLine, &lastSpace, &current](String::const_iterator itr) {
     startLine = itr;
     lastSpace = startLine;
+
+    // This can be linear.
     size = std::distance(startLine, std::next(current));
   };
 
