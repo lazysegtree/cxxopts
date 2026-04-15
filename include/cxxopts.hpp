@@ -2324,12 +2324,17 @@ wrap_text
       if(std::next(current) == std::end(text)) {
         endHere = true;
       }
+      else if (is_space(std::next(current))) {
+        // Don't break. Think of cases 'abc   \nxyz' with allowed=5
+        // we will break in next iteration if needed
+      }
       else if(size >= allowed) {
         if(lastSpace == startLine) 
         {
           // Pure non-space text. Have to split
         } else if (lastSpace == current) {
           // Ending with space. Split here. add_line() will take care of trimming
+
         } else {
           // Space somewhere in between. 
           // Case-I Current is at the word boundary, Just split at the end
@@ -2340,6 +2345,8 @@ wrap_text
             endLine = std::next(lastSpace);
           }
         }
+
+        // TODO: Explain
         if(*endLine == '\n') {
           endHere = false;
         } else {

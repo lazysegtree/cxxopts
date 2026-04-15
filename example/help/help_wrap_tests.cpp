@@ -217,6 +217,14 @@ test_wrap()
       0,
       1,
       "",
+    },
+    {
+      "trailing spaces before an explicit newline",
+      "abc   \nxyz",
+      5,
+      0,
+      "abc\n"
+      "xyz"
     }
   };
 
