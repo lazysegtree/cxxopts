@@ -2223,6 +2223,8 @@ wrap_text
   std::size_t start = 0 // spaces_to_append_at_newline
 )
 {
+  if(allowed == 0) return String{};
+
   String result;
 
   auto current = std::begin(text);
@@ -2235,7 +2237,6 @@ wrap_text
   // clamp spaces/add newlines on need basis
   bool firstLine = true;
   bool newLinesAdded = false;
-  bool needPrependNewline = true;
   // Loop invariants that must be true at the beginning of the loop
   // 1 - [std::begin(desc), startLine) is already added to result
   // 2a - startLine <= current
@@ -2264,7 +2265,7 @@ wrap_text
   auto add_line = [&](String::const_iterator startLine, String::const_iterator endLine) {
     // startLine == endLine means empty line
     // Handle newlines, clamping, everything here
-    if(!firstLine && needPrependNewline) {
+    if(!firstLine) {
       stringAppend(result, 1, '\n');
     }
 
@@ -2308,7 +2309,6 @@ wrap_text
         // And we need to do that now as we don't be doing further iterations
         add_line(std::next(current), std::next(current));
       }
-      needPrependNewline = false;
 
     } else if(is_space(current) && size == 0) {
       // Ignore leading spaces
@@ -2320,7 +2320,6 @@ wrap_text
       }
       bool endHere = false;
       auto endLine = std::next(current); // [startLine, endLine)
-      auto nextLineStart = std::next(current); // 
       
       if(std::next(current) == std::end(text)) {
         endHere = true;
@@ -2338,16 +2337,19 @@ wrap_text
           }
           // Case-II Current is not at the word bound. Split the line from last space
           else {
-            nextLineStart = endLine = std::next(lastSpace);
+            endLine = std::next(lastSpace);
           }
         }
-        endHere = true;
+        if(*endLine == '\n') {
+          endHere = false;
+        } else {
+          endHere = true;
+        }
       }
 
       if(endHere) {
         add_line(startLine, endLine);
-        reset_line_start(nextLineStart);
-        needPrependNewline = true;
+        reset_line_start(endLine);
       }
     }
   }

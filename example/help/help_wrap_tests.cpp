@@ -200,7 +200,7 @@ test_wrap()
     },
     {
       "Edge case of minimum width",
-      "abc\nx  y\n  z",
+      "abc\n\nx  y\n  z",
       1,
       1,
       "a\n"
@@ -209,7 +209,6 @@ test_wrap()
       "\n"
       " x\n"
       " y\n"
-      "\n"
       " z"
     },
     {
@@ -237,7 +236,7 @@ test_wrap()
         std::cerr << "  expected: \"" << escape(tc.expected) << "\"\n";
         std::cerr << "  actual:   \"" << escape(actual) << "\"\n";
         ++failures;
-        std::exit(0);
+        //std::exit(0);
       }
     }
     catch (const std::exception& e)
@@ -249,7 +248,7 @@ test_wrap()
       std::cerr << "  exception: " << e.what() << '\n';
       ++failures;
 
-        std::exit(0);
+        //std::exit(0);
     }
   }
 
