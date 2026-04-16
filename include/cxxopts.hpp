@@ -3115,6 +3115,8 @@ Options::help(const std::vector<std::string>& help_groups, bool print_usage) con
 
   result += "\n\n";
 
+  result = wrap_text(result, m_width, 0);
+
   if (help_groups.empty())
   {
     generate_all_groups_help(result);
