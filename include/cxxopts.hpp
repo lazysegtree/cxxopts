@@ -2226,33 +2226,34 @@ wrap_text
   if(allowed == 0) return String{};
 
   String result;
-  const auto end = std::end(text);
 
+
+  
   auto current = std::begin(text);
+  using Iterator = decltype(current);
+
   auto startLine = current;
   auto lastSpace = current;
   auto size = std::size_t{};
 
-  // clamp spaces/add newlines on need basis
   bool firstLine = true;
+  const auto end = std::end(text);
 
   // Loop invariants at the beginning of each iteration:
   // 1 - [std::begin(text), startLine) is already added to result
   // 2 - currentLine [startLine, current) is not added to result yet
   // 3 - size is the number of characters in [startLine, current)
-  // 4 - lastSpace is startLine if no breakable whitespace was seen in the
-  //     current line, otherwise it points to the last seen whitespace
   //
   // At every loop we try to include current in the currentLine.
   // If there is a need to start a new line, we do that first.
 
   // Treat explicit newlines as whitespace for trimming and break detection.
-  auto is_space = [](String::const_iterator itr) -> bool {
+  auto is_space = [](Iterator itr) -> bool {
     return *itr == ' ' || *itr == '\t' || *itr == '\n';
   };
 
-  // Ensure startLine <= endLine
-  auto add_line = [&firstLine, &result, &is_space, &start](String::const_iterator startLine, String::const_iterator endLine) {
+  // Ensure when calling startLine <= endLine
+  auto add_line = [&firstLine, &result, &is_space, &start](Iterator startLine, Iterator endLine) {
     // startLine == endLine means empty line
     // Handle newlines, clamping, everything here
     if(!firstLine) {
@@ -2281,11 +2282,10 @@ wrap_text
   // that [itr, current] doesn't contains any space.
   // either its called with itr = std::next(current)
   // or with an itr <= current in case of word splitting
-  auto reset_line_start = [&size, &startLine, &lastSpace, &current](String::const_iterator itr) {
+  auto reset_line_start = [&size, &startLine, &lastSpace, &current](Iterator itr) {
     startLine = itr;
     lastSpace = startLine;
 
-    // This can be linear.
     size = std::distance(startLine, std::next(current));
   };
 
@@ -2310,7 +2310,7 @@ wrap_text
         lastSpace = current;
       }
       bool endHere = false;
-      auto endLine = currentNext; // [startLine, endLine)
+      auto endLine = currentNext;
       
       if(currentNext == end) {
         endHere = true;
@@ -2449,32 +2449,6 @@ format_description
     desc = desc2;
   }
 
-
-  // Why the fuck you have to add this??? 
-  // This already reeks of a bad algorithm. This needs to be simplified.
-  
-  //desc += " ";
-
-  // Now need to understand this wrapping algo
-  // And do min changes and make this reusable and fix this
-  // And... then reuse for wrapping the main guy
-  
-
-  // Confirmed bugs. Now I really need to partially rewrite this
-  /*
-    - High: it can drop characters when a long word wraps with no whitespace break. I reproduced "01234567890"
-    rendering as "0123456789". The root cause is the sentinel space at include/cxxopts.hpp:2315, then resetting
-    onlyWhiteSpace in the wrap branch at include/cxxopts.hpp:2399, and finally flushing only up to previous at
-    include/cxxopts.hpp:2414. That combination loses the final character of the last fragment.
-  - High: consecutive explicit newlines can drop real text after the newline run. I reproduced "a\n\nb" rendering
-    as a plus a blank indented line, with b missing. This comes from consuming \n in include/cxxopts.hpp:2346,
-    then taking the appendNewLine path at include/cxxopts.hpp:2369 where the post-newline state is reset
-    inconsistently.
-  - Medium: a description that ends with \n produces a spurious whitespace-only continuation line. I reproduced
-    "abc\n" rendering abc followed by an indented blank line. The immediate cause is the unconditional indent
-    append at include/cxxopts.hpp:2386 even when no non-whitespace content remains.
-
-  */
   return wrap_text(desc, allowed, start);
 }
 
@@ -2987,7 +2961,6 @@ Options::help_one_group(const std::string& g) const
 
   for (const auto& o : group->second.options)
   {
-    // TODO: This behaviour is very undocumented. At least add a comment
     if (o.l.size() &&
         m_positional_set.find(o.l.front()) != m_positional_set.end() &&
         !m_show_positional)
@@ -2999,32 +2972,15 @@ Options::help_one_group(const std::string& g) const
     longest = (std::max)(longest, stringLength(s));
     format.push_back(std::make_pair(s, String()));
   }
-  // maximum display width of the full formatted left-hand help entry
-  // longest can be really big, or at least '4' 
-  // If no options. Code never reaches here and it stays as 0
   longest = (std::min)(longest, OPTION_LONGEST);
 
   //widest allowed description -- min 10 chars for helptext/line
   std::size_t allowed = 10;
   
-  // If allowed < m_width - longest - OPTION_DESC_GAP(2)
-  // --- col1---- ---gap--- ---allowed---
-  // ------------------m_width--------------------
-  // Grow a small allowed value. But Don't stop a large allowed value??
-
-
-  // Smaller m_width values basically doesn't matter at this point
-  // Anything smaller than min_longest + 10 + OPTION_DESC_GAP is pointless and is ignored by this part
-  // But may not be ignored by other parts
-  // min_longest can be '0'
-  // "Usage:" string needs at least 6 characters
-  // 
   if (m_width > allowed + longest + OPTION_DESC_GAP)
   {
     allowed = m_width - longest - OPTION_DESC_GAP;
   }
-
-  DEBUG(allowed);
 
   auto fiter = format.begin();
   for (const auto& o : group->second.options)
