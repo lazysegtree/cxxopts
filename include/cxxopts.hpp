@@ -44,8 +44,6 @@ THE SOFTWARE.
 #include <algorithm>
 #include <locale>
 
-#include "../example/debug.h"
-#include <cassert>
 
 #ifdef CXXOPTS_NO_EXCEPTIONS
 #include <iostream>
