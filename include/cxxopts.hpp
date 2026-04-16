@@ -2976,7 +2976,6 @@ Options::help_one_group(const std::string& g) const
 
   //widest allowed description -- min 10 chars for helptext/line
   std::size_t allowed = 10;
-  
   if (m_width > allowed + longest + OPTION_DESC_GAP)
   {
     allowed = m_width - longest - OPTION_DESC_GAP;
@@ -2996,9 +2995,6 @@ Options::help_one_group(const std::string& g) const
 
     result += fiter->first;
 
-    // if the actual formatted option is longer than longest, cxxopts prints
-    // the option on its own line and starts the description
-    // on the next line, indented to the description column.
     if (stringLength(fiter->first) > longest)
     {
       result += '\n';
