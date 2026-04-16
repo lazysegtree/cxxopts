@@ -239,6 +239,14 @@ test_wrap()
       0,
       "abc\n"
       "xyz"
+    },
+    {
+      "Consecutive trailing newlines are preserved",
+      "a\n\n",
+      3,
+      2,
+      "a\n"
+      "\n"
     }
   };
 
@@ -306,6 +314,100 @@ test_full()
       "  -o, --opt  Sample\n"
       "             descriptio\n"
       "             n\n"
+    },
+    {
+      "Custom help manual newline",
+      cxxopts::Options("prog")
+        .custom_help("Custom\nHelp")
+        .set_width(12),
+      {{"o,opt", "desc"}},
+      {},
+      "\n"
+      "Usage:\n"
+      "prog Custom\n"
+      "Help\n"
+      "\n"
+      "  -o, --opt  desc\n"
+    },
+    {
+      "Description spaces before explicit newline",
+      cxxopts::Options("prog")
+        .set_width(18),
+      {{"o,opt", "alpha   \nbeta"}},
+      {},
+      "\n"
+      "Usage:\n"
+      "prog [OPTION...]\n"
+      "\n"
+      "  -o, --opt  alpha\n"
+      "             beta\n"
+    },
+    {
+      "Description blank line is preserved",
+      cxxopts::Options("prog")
+        .set_width(18),
+      {{"o,opt", "alpha\n\nbeta"}},
+      {},
+      "\n"
+      "Usage:\n"
+      "prog [OPTION...]\n"
+      "\n"
+      "  -o, --opt  alpha\n"
+      "\n"
+      "             beta\n"
+    },
+    {
+      "Description trailing newline is preserved",
+      cxxopts::Options("prog")
+        .set_width(18),
+      {{"o,opt", "alpha\n"}},
+      {},
+      "\n"
+      "Usage:\n"
+      "prog [OPTION...]\n"
+      "\n"
+      "  -o, --opt  alpha\n"
+      "\n"
+    },
+    {
+      "Description leading newline is preserved",
+      cxxopts::Options("prog")
+        .set_width(18),
+      {{"o,opt", "\nalpha"}},
+      {},
+      "\n"
+      "Usage:\n"
+      "prog [OPTION...]\n"
+      "\n"
+      "  -o, --opt  \n"
+      "             alpha\n"
+    },
+    {
+      "Custom help trailing newline is preserved",
+      cxxopts::Options("prog")
+        .custom_help("Custom\n")
+        .set_width(12),
+      {{"o,opt", "desc"}},
+      {},
+      "\n"
+      "Usage:\n"
+      "prog Custom\n"
+      "\n"
+      "\n"
+      "  -o, --opt  desc\n"
+    },
+    {
+      "Tab expansion happens before description wrapping",
+      cxxopts::Options("prog")
+        .set_width(26)
+        .set_tab_expansion(true),
+      {{"o,opt", "a\tb"}},
+      {},
+      "\n"
+      "Usage:\n"
+      "prog [OPTION...]\n"
+      "\n"
+      "  -o, --opt  a       b\n"
     },
   };
 
