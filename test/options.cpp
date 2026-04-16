@@ -1568,3 +1568,8 @@ TEST_CASE("Ordering of multiple long options", "[help]")
   CHECK(help.find("--alphaw") != std::string::npos);
   CHECK(help.find("--beta") != std::string::npos);
 }
+
+TEST_CASE("Help output wrapping", "[help]")
+{
+  
+}
