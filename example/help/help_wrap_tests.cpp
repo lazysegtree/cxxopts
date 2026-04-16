@@ -277,19 +277,91 @@ test_wrap()
   return failures;
 }
 
+int
+test_full()
+{
+  struct {
+    std::string name;
+    cxxopts::Options parser;
+    std::vector<std::pair<std::string, std::string>> opts;
+    std::vector<std::string> positionals;
+    std::string expected;
+  } tests[] = {
+    {
+      "Basic test",
+      cxxopts::Options("prog_abc", "This is a sample program for snake jazz")
+        .positional_help("Positional help")
+        .custom_help("Custom help")
+        .set_width(15),
+      {{"o,opt", "Sample description"}},
+      {"o"},
+      "This is a\n"
+      "sample program\n"
+      "for snake jazz\n"
+      "Usage:\n"
+      "prog_abc Custom\n"
+      "help Positional\n"
+      "help\n"
+      "\n"
+      "  -o, --opt  Sample\n"
+      "             descriptio\n"
+      "             n\n"
+    },
+  };
+
+  auto failures = 0;
+
+  for (auto& tc : tests)
+  {
+    try
+    {
+      for(auto opt : tc.opts) {
+        tc.parser.add_options()(opt.first, opt.second);
+      }
+      tc.parser.parse_positional(tc.positionals);
+
+      auto actual = tc.parser.help();;
+      if (actual != tc.expected)
+      {
+        std::cerr << "FAIL: " << tc.name << '\n';
+        std::cerr << "  expected: \"" << escape(tc.expected) << "\"\n";
+        std::cerr << "  actual:   \"" << escape(actual) << "\"\n";
+        ++failures;
+      }
+    }
+    catch (const std::exception& e)
+    {
+      std::cerr << "FAIL: " << tc.name << '\n';
+      std::cerr << "  exception: " << e.what() << '\n';
+      ++failures;
+
+    }
+  }
+
+  return failures;
+}
+
 } // namespace
+
+
 
 int
 main()
 {
-  const auto failures = test_wrap();
+  auto failures = test_wrap();
 
   if (failures != 0)
   {
     std::cerr << failures << " wrap_text test(s) failed\n";
     return 1;
   }
+  failures = test_full();
+  if (failures != 0)
+  {
+    std::cerr << failures << " full_help test(s) failed\n";
+    return 1;
+  }
 
-  std::cout << "All wrap_text tests passed\n";
+  std::cout << "All wrap_text and full_help tests passed\n";
   return 0;
 }

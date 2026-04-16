@@ -2987,6 +2987,7 @@ Options::help_one_group(const std::string& g) const
 
   for (const auto& o : group->second.options)
   {
+    // TODO: This behaviour is very undocumented. At least add a comment
     if (o.l.size() &&
         m_positional_set.find(o.l.front()) != m_positional_set.end() &&
         !m_show_positional)
@@ -3001,12 +3002,10 @@ Options::help_one_group(const std::string& g) const
   // maximum display width of the full formatted left-hand help entry
   // longest can be really big, or at least '4' 
   // If no options. Code never reaches here and it stays as 0
-  DEBUG(longest);
   longest = (std::min)(longest, OPTION_LONGEST);
 
   //widest allowed description -- min 10 chars for helptext/line
   std::size_t allowed = 10;
-  DEBUG(m_width, allowed, longest, OPTION_DESC_GAP);
   
   // If allowed < m_width - longest - OPTION_DESC_GAP(2)
   // --- col1---- ---gap--- ---allowed---
