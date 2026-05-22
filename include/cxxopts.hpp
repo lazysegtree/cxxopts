@@ -1057,7 +1057,9 @@ integer_parser(const std::string& text, T& value)
     US limit = 0;
     if (negative)
     {
-      limit = static_cast<US>(std::abs(static_cast<intmax_t>((std::numeric_limits<T>::min)())));
+      limit = static_cast<US>(
+        static_cast<US>((std::numeric_limits<T>::max)()) + US{1}
+      );
     }
     else
     {
