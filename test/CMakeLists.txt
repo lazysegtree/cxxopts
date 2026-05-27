@@ -27,7 +27,7 @@ target_link_libraries(options_test_noregex cxxopts)
 target_compile_definitions(options_test_noregex PRIVATE CXXOPTS_NO_REGEX)
 add_test(options_no_regex options_test_noregex)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+if(NOT WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     foreach(test_target options_test options_test_noregex)
         target_compile_options(${test_target} PRIVATE -fsanitize=undefined -fno-sanitize-recover=undefined)
         set_target_properties(${test_target} PROPERTIES LINK_FLAGS "-fsanitize=undefined -fno-sanitize-recover=undefined")
